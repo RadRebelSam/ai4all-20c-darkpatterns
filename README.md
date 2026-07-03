@@ -10,9 +10,9 @@ Can machine learning models detect dark-pattern language in e-commerce website t
 
 ## Project Evolution
 
-The project began with a broad survey of multiple dark-pattern datasets from Kaggle. Early attempts to combine several category-labeled datasets ran into inconsistent label schemas and imbalanced class distributions that inflated accuracy scores without producing a reliable classifier. After comparing label quality and coverage across four candidate datasets, we converged on a single balanced binary dataset of 2,356 examples (1,178 dark pattern, 1,178 not) as the primary training source and used secondary category-labeled datasets only for exploratory analysis.
+The project began with a broad survey of multiple dark-pattern datasets from Kaggle. Early attempts to combine several category-labeled datasets into one all-purpose model ran into inconsistent label schemas and imbalanced class distributions. After comparing label quality and coverage, we split the modeling into two parts: a balanced binary detector trained on the Krish Uppal dataset, and a separate second-stage category model trained on compatible category-labeled dark-pattern examples.
 
-The modeling pipeline went through two main iterations. The first used a simple bag-of-words (CountVectorizer) approach and showed that even basic text features could achieve over 85% accuracy. The second switched to TF-IDF with unigram and bigram features, which improved both precision and F1 score by giving more weight to distinctive terms rather than raw counts. Five classifiers were compared on an 80/20 stratified split. Logistic Regression emerged as the best performer at 93.9% accuracy and 0.936 F1, offering a good balance of accuracy, speed, and interpretability through its learned feature coefficients.
+The modeling pipeline went through three main iterations. The first used a simple bag-of-words (CountVectorizer) approach and showed that even basic text features could achieve over 85% accuracy. The second switched to TF-IDF with unigram and bigram features, which improved both precision and F1 score by giving more weight to distinctive terms rather than raw counts. The third added a second trained model for category/type recognition so the app can explain whether suspicious text looks more like urgency, scarcity, social proof, or another dark-pattern type.
 
 ## Design Decisions and Reasoning
 
@@ -34,15 +34,27 @@ This section documents the main project decisions and why we made them.
 | Sentiment/context decision | Documented sentiment and UI context as future work instead of adding them now. | Sentiment can help with shame/fear/guilt language, but dark patterns depend heavily on button roles, popup placement, timing, and user flow. Adding this now would require new labeled data and a more complex pipeline. |
 | Production limitation | Documented OCR, screenshot, color/layout, DOM/CSS, and UX-flow detection as future production layers. | Even with Playwright, this project is text-first. A real production detector would need additional evidence for image text, visual hierarchy, hidden links, checkout friction, cancellation difficulty, and other non-text patterns. |
 
-## Algorithm: TF-IDF + Logistic Regression
+## Two-Model Pipeline
 
-The pipeline has two stages:
+The current project uses **two trained machine learning models**:
 
-1. **TF-IDF Vectorizer** — converts each text snippet into a numeric vector. Terms that appear frequently in dark-pattern examples but rarely in neutral text receive high weights. Unigrams and bigrams are both included (`ngram_range=(1,2)`), so phrases like "limited time" are treated as a single feature.
+1. **Model 1: Binary dark-pattern detector**
+   - Input: a piece of website or e-commerce text.
+   - Output: `Dark Pattern` or `Not Dark Pattern`.
+   - Best model: `TF-IDF + Logistic Regression`.
+   - Purpose: decide whether the text looks suspicious at all.
 
-2. **Logistic Regression** — learns a weight for each TF-IDF feature. Positive weights push the prediction toward "dark pattern"; negative weights push toward "not dark pattern." The learned coefficients are directly interpretable as feature importance scores.
+2. **Model 2: Dark-pattern type/category classifier**
+   - Input: text that was flagged as suspicious by Model 1.
+   - Output: a likely type such as `Urgency`, `Scarcity`, `Social Proof`, `Misdirection`, `Obstruction`, `Sneaking`, or `Forced Action`.
+   - Best model: `TF-IDF + Linear SVM`.
+   - Purpose: make the result easier to explain by showing what kind of dark pattern the text may be.
 
-## Model Comparison
+Both models use TF-IDF text features with unigrams and bigrams. TF-IDF converts each snippet into a numeric vector where distinctive words and phrases receive higher weight. Bigrams help capture phrases such as `limited time` and `only left`.
+
+The second model should be treated as an explanation aid, not a final label. It is trained only on dark-pattern examples, and some categories have much less data than others.
+
+## Model 1: Binary Detection Results
 
 All five models were evaluated on the same 20% held-out test set (stratified split, `random_state=42`).
 
@@ -54,13 +66,28 @@ All five models were evaluated on the same 20% held-out test set (stratified spl
 | Random Forest | 0.928 | 0.986 | 0.869 | 0.923 | High precision but lower recall |
 | Decision Tree | 0.917 | 0.980 | 0.852 | 0.912 | Prone to overfitting on text features |
 
-**Why Logistic Regression?** It achieves the highest F1 score, produces calibrated probability estimates (enabling confidence scores in the demo app), and its coefficients can be inspected to verify that the model is learning semantically meaningful features rather than spurious correlations. Linear SVM scores nearly as well but does not natively output probabilities.
+**Why Logistic Regression for Model 1?** It achieves the highest binary F1 score, produces probability estimates for confidence scores in the app/scanner, and its coefficients can be inspected to verify that the model is learning meaningful text features.
+
+## Model 2: Category Classification Results
+
+The second-stage model is trained only on examples that are already labeled as dark patterns. It predicts the likely category/type after the binary model has flagged text as suspicious.
+
+| Model | Accuracy | Macro Precision | Macro Recall | Macro F1 | Notes |
+| --- | ---: | ---: | ---: | ---: | --- |
+| **Linear SVM** | **0.920** | **0.927** | **0.870** | **0.894** | Best category model |
+| Random Forest | 0.893 | 0.930 | 0.777 | 0.816 | High precision, lower recall on smaller classes |
+| Logistic Regression | 0.906 | 0.790 | 0.757 | 0.769 | Easier to explain, but weaker macro F1 |
+| Naive Bayes | 0.914 | 0.798 | 0.750 | 0.768 | Fast baseline |
+| Decision Tree | 0.828 | 0.746 | 0.677 | 0.695 | Lowest category performance |
+
+Macro F1 is used here because the category dataset is imbalanced. It gives each category more equal weight, so small classes like `Sneaking`, `Obstruction`, and `Forced Action` still matter in the score.
 
 ## Dataset
 
-- **Primary (binary):** Krish Uppal balanced dataset — 2,356 examples, 50/50 split between dark-pattern and not-dark-pattern text
-- **Categories in dark-pattern class:** Scarcity (418), Social Proof (312), Urgency (210), Misdirection (195), Obstruction (27), Sneaking (12), Forced Action (4)
-- **Source:** Kaggle, English-language e-commerce websites
+- **Primary binary dataset:** Krish Uppal balanced dataset, 2,356 examples, 50/50 split between dark-pattern and not-dark-pattern text.
+- **Second-stage category dataset:** compatible category-labeled dark-pattern rows from Adarsh, Devitachi, and Mohit sources, deduplicated to 1,861 dark-pattern examples.
+- **Category labels predicted by Model 2:** Forced Action, Misdirection, Obstruction, Scarcity, Sneaking, Social Proof, and Urgency.
+- **Source:** Kaggle, English-language e-commerce websites.
 
 ## Visualizations
 
