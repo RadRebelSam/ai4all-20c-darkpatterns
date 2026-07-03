@@ -375,56 +375,6 @@ def plot_model_summary_card() -> None:
     print("  Saved two_model_summary_card.png")
 
 
-def plot_example_result_flow() -> None:
-    """Visualize one example moving through both models."""
-    example = "Only 2 left in stock. Order now before it sells out."
-    binary_model = make_pipeline("Logistic Regression")
-    binary_df = load_primary_binary_dataset()
-    binary_model.fit(binary_df[TEXT_COLUMN], binary_df[LABEL_COLUMN])
-    label = int(binary_model.predict([example])[0])
-    prob = binary_model.predict_proba([example])[0][label]
-
-    category_df = load_dark_pattern_category_dataset()
-    category_model = make_pipeline("Linear SVM")
-    category_model.fit(category_df[TEXT_COLUMN], category_df[CATEGORY_COLUMN])
-    category = category_model.predict([example])[0]
-
-    fig, ax = plt.subplots(figsize=(12, 4.8))
-    ax.axis("off")
-    fig.patch.set_facecolor("#ffffff")
-
-    steps = [
-        ("Input text", f'"{example}"'),
-        ("Model 1 result", f"Dark Pattern\\nconfidence {prob:.1%}"),
-        ("Model 2 result", f"Likely type\\n{category}"),
-    ]
-    xs = [0.06, 0.38, 0.70]
-    colors = [PALETTE[2], PALETTE[0], PALETTE[1]]
-    for x, (title, body), color in zip(xs, steps, colors):
-        patch = FancyBboxPatch(
-            (x, 0.30),
-            0.24,
-            0.38,
-            boxstyle="round,pad=0.025,rounding_size=0.035",
-            linewidth=1.3,
-            edgecolor="#334155",
-            facecolor=color,
-            alpha=0.9,
-        )
-        ax.add_patch(patch)
-        ax.text(x + 0.12, 0.57, title, ha="center", fontsize=13, fontweight="bold")
-        ax.text(x + 0.12, 0.43, body, ha="center", va="center", fontsize=10)
-
-    arrow_kw = dict(arrowstyle="->", lw=2, color="#334155", shrinkA=5, shrinkB=5)
-    ax.annotate("", xy=(0.38, 0.49), xytext=(0.30, 0.49), arrowprops=arrow_kw)
-    ax.annotate("", xy=(0.70, 0.49), xytext=(0.62, 0.49), arrowprops=arrow_kw)
-    ax.set_title("Example Result Flow Through Both Models", fontsize=16, fontweight="bold", pad=12)
-
-    save_figure(fig, "example_result_flow.png")
-    plt.close(fig)
-    print("  Saved example_result_flow.png")
-
-
 # ---------------------------------------------------------------------------
 # 3.  Category Distribution  (horizontal bar chart)
 # ---------------------------------------------------------------------------
@@ -523,7 +473,6 @@ def main() -> None:
     print("Generating visualizations...")
     plot_two_stage_pipeline()
     plot_model_summary_card()
-    plot_example_result_flow()
     plot_model_comparison()
     plot_category_model_comparison()
     plot_confusion_matrix()

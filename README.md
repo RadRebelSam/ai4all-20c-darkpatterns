@@ -97,7 +97,6 @@ Publication-quality figures are in [`reports/figures/`](reports/figures/) and em
 | --- | --- |
 | `two_stage_pipeline.png` | Diagram showing the binary detector feeding the second-stage category classifier |
 | `two_model_summary_card.png` | Compact summary comparing the two trained models and their jobs |
-| `example_result_flow.png` | Example text flowing through Model 1 and Model 2 |
 | `model_comparison.png` | Grouped horizontal bar chart comparing all 5 models across 4 metrics |
 | `category_model_comparison.png` | Grouped horizontal bar chart comparing the second-stage category classifiers |
 | `confusion_matrix.png` | Heatmap for Logistic Regression on the 20% test set |
