@@ -21,11 +21,24 @@ AUTO_SLIDE_TITLES = {
     "Category Error Analysis",
     "Example Result Flow",
 }
+AUTO_POSTER_TEXT = {
+    "Two-Model Demo Flow",
+    "Updated: Two Trained Models",
+    "Model 1 detects Dark vs Not Dark (F1 0.936). Model 2 predicts likely type with Linear SVM (macro F1 0.894).",
+}
 
 
 def replace_text_in_shape(shape, replacements: dict[str, str]) -> None:
     if not hasattr(shape, "text_frame"):
         return
+    if hasattr(shape, "text"):
+        full_text = shape.text
+        replaced_text = full_text
+        for old, new in replacements.items():
+            replaced_text = replaced_text.replace(old, new)
+        if replaced_text != full_text:
+            shape.text = replaced_text
+            return
     for paragraph in shape.text_frame.paragraphs:
         for run in paragraph.runs:
             text = run.text
@@ -117,6 +130,12 @@ def add_picture(slide, filename: str, left: float, top: float, width: float | No
     if height is not None:
         kwargs["height"] = Inches(height)
     slide.shapes.add_picture(str(path), Inches(left), Inches(top), **kwargs)
+
+
+def remove_auto_poster_overlays(slide) -> None:
+    for shape in list(slide.shapes):
+        if hasattr(shape, "text") and shape.text.strip() in AUTO_POSTER_TEXT:
+            shape._element.getparent().remove(shape._element)
 
 
 def add_model_slide(prs: Presentation) -> None:
@@ -225,9 +244,12 @@ def update_final_presentation() -> Path:
 def update_final_poster() -> Path:
     prs = Presentation(FINAL_POSTER)
     slide = prs.slides[0]
+    remove_auto_poster_overlays(slide)
     replace_text_everywhere(
         prs,
         {
+            "Model\nTF-IDF + Logistic Regression. Compared against Linear SVM, Naive Bayes, Decision Tree, and Random Forest.": "Models\nModel 1: TF-IDF + Logistic Regression detects Dark vs Not Dark. Model 2: TF-IDF + Linear SVM predicts likely type.",
+            "Result\nBest primary model: 93.9% accuracy, 0.936 F1.": "Results\nModel 1: 93.9% accuracy, 0.936 F1. Model 2: 0.894 macro F1 for category/type recognition.",
             "Model TF-IDF + Logistic Regression. Compared against Linear SVM, Naive Bayes, Decision Tree, and Random Forest.": "Models Model 1: TF-IDF + Logistic Regression detects Dark Pattern vs Not Dark Pattern. Model 2: TF-IDF + Linear SVM predicts likely type.",
             "Result Best primary model: 93.9% accuracy, 0.936 F1.": "Results Model 1: 93.9% accuracy, 0.936 F1. Model 2: 0.894 macro F1 for category/type recognition.",
             "Future Work Hard-negative mining, TF-IDF tuning, threshold tuning, OCR, visual layout features, and UX-flow": "Future Work Hard-negative mining, more balanced category labels, threshold tuning, OCR, visual layout features, and UX-flow",
