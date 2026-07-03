@@ -235,7 +235,7 @@ def plot_category_confusion_matrix() -> None:
     labels = sorted(y_test.unique())
     cm = confusion_matrix(y_test, y_pred, labels=labels)
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(12, 9))
     sns.heatmap(
         cm,
         annot=True,
@@ -246,11 +246,11 @@ def plot_category_confusion_matrix() -> None:
         linewidths=0.5,
         ax=ax,
     )
-    ax.set_xlabel("Predicted", fontsize=12)
-    ax.set_ylabel("Actual", fontsize=12)
-    ax.set_title("Category Confusion Matrix - Linear SVM", fontsize=14, fontweight="bold")
-    ax.tick_params(axis="x", rotation=35)
-    ax.tick_params(axis="y", rotation=0)
+    ax.set_xlabel("Predicted", fontsize=13)
+    ax.set_ylabel("Actual", fontsize=13)
+    ax.set_title("Category Confusion Matrix - Linear SVM", fontsize=16, fontweight="bold")
+    ax.tick_params(axis="x", rotation=30, labelsize=10)
+    ax.tick_params(axis="y", rotation=0, labelsize=10)
 
     plt.tight_layout()
     save_figure(fig, "category_confusion_matrix.png")
@@ -289,24 +289,30 @@ def plot_category_per_class_f1() -> None:
         }
     ).sort_values("f1")
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bars = ax.barh(scores["category"], scores["f1"], color=PALETTE[1])
+    fig, ax = plt.subplots(figsize=(12, 7.5))
+    bars = ax.barh(scores["category"], scores["f1"], color=PALETTE[1], height=0.62)
     for bar, val, count in zip(bars, scores["f1"], scores["support"]):
+        x_pos = min(val + 0.018, 1.01)
         ax.text(
-            val + 0.015,
+            x_pos,
             bar.get_y() + bar.get_height() / 2,
-            f"{val:.2f}  n={count}",
+            f"F1 {val:.2f}  |  test n={count}",
             va="center",
-            fontsize=9,
+            fontsize=10,
+            color="#334155",
         )
-    ax.set_xlim(0, 1.08)
-    ax.set_xlabel("F1 Score")
-    ax.set_title("Second-Stage Model F1 by Dark Pattern Type", fontsize=14, fontweight="bold")
+    ax.set_xlim(0, 1.16)
+    ax.set_xlabel("F1 Score", fontsize=12)
+    ax.set_ylabel("")
+    ax.tick_params(axis="y", labelsize=11)
+    ax.tick_params(axis="x", labelsize=10)
+    ax.grid(axis="x", alpha=0.25)
+    ax.set_title("Second-Stage Model F1 by Dark Pattern Type", fontsize=16, fontweight="bold")
     ax.text(
         0,
-        -0.95,
+        -0.9,
         "Lower scores often reflect fewer training examples or overlap between similar categories.",
-        fontsize=9,
+        fontsize=10,
         color="#475569",
     )
 
