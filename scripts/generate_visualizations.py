@@ -289,7 +289,7 @@ def plot_category_per_class_f1() -> None:
         }
     ).sort_values("f1")
 
-    fig, ax = plt.subplots(figsize=(12, 7.5))
+    fig, ax = plt.subplots(figsize=(12, 8.2))
     bars = ax.barh(scores["category"], scores["f1"], color=PALETTE[1], height=0.62)
     for bar, val, count in zip(bars, scores["f1"], scores["support"]):
         x_pos = min(val + 0.018, 1.01)
@@ -301,22 +301,24 @@ def plot_category_per_class_f1() -> None:
             fontsize=10,
             color="#334155",
         )
-    ax.set_xlim(0, 1.16)
-    ax.set_xlabel("F1 Score", fontsize=12)
+    ax.set_xlim(0, 1.12)
+    ax.set_xticks([0, 0.25, 0.50, 0.75, 1.00])
+    ax.set_xlabel("F1 Score", fontsize=12, labelpad=12)
     ax.set_ylabel("")
     ax.tick_params(axis="y", labelsize=11)
     ax.tick_params(axis="x", labelsize=10)
     ax.grid(axis="x", alpha=0.25)
     ax.set_title("Second-Stage Model F1 by Dark Pattern Type", fontsize=16, fontweight="bold")
-    ax.text(
-        0,
-        -0.9,
+    fig.text(
+        0.54,
+        0.035,
         "Lower scores often reflect fewer training examples or overlap between similar categories.",
+        ha="center",
         fontsize=10,
         color="#475569",
     )
 
-    plt.tight_layout()
+    fig.subplots_adjust(left=0.24, right=0.93, top=0.90, bottom=0.17)
     save_figure(fig, "category_per_class_f1.png")
     plt.close(fig)
     print("  Saved category_per_class_f1.png")
