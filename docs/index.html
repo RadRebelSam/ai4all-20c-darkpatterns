@@ -225,16 +225,17 @@
             border-radius: 8px;
             overflow: hidden;
             background: var(--soft);
+            cursor: zoom-in;
         }
 
         figure img {
             display: block;
             width: 100%;
             height: auto;
-            max-height: 620px;
+            max-height: 280px;
             object-fit: contain;
             background: #fff;
-            padding: 1rem;
+            padding: 0.75rem;
         }
 
         .figure-wide {
@@ -242,7 +243,7 @@
         }
 
         .figure-wide img {
-            max-height: 720px;
+            max-height: 320px;
         }
 
         figcaption {
@@ -252,6 +253,75 @@
             font-weight: 700;
             padding: 0.55rem 0.65rem;
             text-align: center;
+        }
+
+        .figure-window {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 18px 50px rgba(18, 38, 63, 0.26);
+            display: none;
+            height: min(72vh, 760px);
+            left: 50%;
+            min-height: 280px;
+            min-width: 320px;
+            overflow: auto;
+            position: fixed;
+            resize: both;
+            top: 10vh;
+            transform: translateX(-50%);
+            width: min(92vw, 980px);
+            z-index: 20;
+        }
+
+        .figure-window.open {
+            display: block;
+        }
+
+        .figure-window.dragging {
+            user-select: none;
+        }
+
+        .figure-window-header {
+            align-items: center;
+            background: var(--teal-dark);
+            color: #fff;
+            cursor: move;
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+            min-height: 42px;
+            padding: 0.55rem 0.75rem;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .figure-window-title {
+            font-size: 0.9rem;
+            font-weight: 750;
+        }
+
+        .figure-window-close {
+            appearance: none;
+            background: rgba(255,255,255,0.16);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 800;
+            line-height: 1;
+            padding: 0.45rem 0.6rem;
+        }
+
+        .figure-window img {
+            display: block;
+            height: auto;
+            margin: 0 auto;
+            max-width: 100%;
+            padding: 1rem;
+            width: 100%;
         }
 
         .callout {
@@ -303,6 +373,14 @@
             .poster-grid { padding: 0.65rem; }
             .hero-metrics, .mini-grid, .figure-grid { grid-template-columns: 1fr; }
             figure img, .figure-wide img { height: auto; }
+            .figure-window {
+                height: 76vh;
+                left: 9px;
+                min-width: 0;
+                top: 10vh;
+                transform: none;
+                width: calc(100vw - 18px);
+            }
         }
     </style>
 </head>
@@ -518,5 +596,86 @@
             <span><a href="https://github.com/RadRebelSam/ai4all-20c-darkpatterns" target="_blank" rel="noopener">GitHub Repository</a></span>
         </footer>
     </main>
+    <div class="figure-window" id="figureWindow" aria-hidden="true">
+        <div class="figure-window-header" id="figureWindowHeader">
+            <div class="figure-window-title" id="figureWindowTitle">Visualization</div>
+            <button class="figure-window-close" id="figureWindowClose" type="button">Close</button>
+        </div>
+        <img id="figureWindowImage" src="" alt="">
+    </div>
+    <script>
+        const figureWindow = document.getElementById("figureWindow");
+        const figureWindowHeader = document.getElementById("figureWindowHeader");
+        const figureWindowTitle = document.getElementById("figureWindowTitle");
+        const figureWindowImage = document.getElementById("figureWindowImage");
+        const figureWindowClose = document.getElementById("figureWindowClose");
+
+        document.querySelectorAll(".figure-grid figure").forEach((figure) => {
+            const image = figure.querySelector("img");
+            const caption = figure.querySelector("figcaption");
+            if (!image) return;
+
+            figure.setAttribute("tabindex", "0");
+            figure.setAttribute("role", "button");
+            figure.setAttribute("aria-label", `Open ${caption ? caption.textContent : image.alt}`);
+
+            const openFigure = () => {
+                figureWindowTitle.textContent = caption ? caption.textContent : image.alt;
+                figureWindowImage.src = image.getAttribute("src");
+                figureWindowImage.alt = image.alt;
+                figureWindow.classList.add("open");
+                figureWindow.setAttribute("aria-hidden", "false");
+            };
+
+            figure.addEventListener("click", openFigure);
+            figure.addEventListener("keydown", (event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openFigure();
+                }
+            });
+        });
+
+        figureWindowClose.addEventListener("click", () => {
+            figureWindow.classList.remove("open");
+            figureWindow.setAttribute("aria-hidden", "true");
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") {
+                figureWindow.classList.remove("open");
+                figureWindow.setAttribute("aria-hidden", "true");
+            }
+        });
+
+        let dragStart = null;
+        figureWindowHeader.addEventListener("pointerdown", (event) => {
+            if (event.target === figureWindowClose) return;
+            const rect = figureWindow.getBoundingClientRect();
+            dragStart = {
+                pointerX: event.clientX,
+                pointerY: event.clientY,
+                left: rect.left,
+                top: rect.top
+            };
+            figureWindow.classList.add("dragging");
+            figureWindow.style.transform = "none";
+            figureWindowHeader.setPointerCapture(event.pointerId);
+        });
+
+        figureWindowHeader.addEventListener("pointermove", (event) => {
+            if (!dragStart) return;
+            const nextLeft = dragStart.left + event.clientX - dragStart.pointerX;
+            const nextTop = dragStart.top + event.clientY - dragStart.pointerY;
+            figureWindow.style.left = `${Math.max(8, nextLeft)}px`;
+            figureWindow.style.top = `${Math.max(8, nextTop)}px`;
+        });
+
+        figureWindowHeader.addEventListener("pointerup", (event) => {
+            dragStart = null;
+            figureWindow.classList.remove("dragging");
+            figureWindowHeader.releasePointerCapture(event.pointerId);
+        });
+    </script>
 </body>
 </html>
