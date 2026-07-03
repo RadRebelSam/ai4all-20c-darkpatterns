@@ -215,8 +215,8 @@
 
         .figure-grid {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 1.35rem;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 1rem;
             margin-top: 1rem;
         }
 
@@ -232,18 +232,18 @@
             display: block;
             width: 100%;
             height: auto;
-            max-height: 280px;
+            max-height: 230px;
             object-fit: contain;
             background: #fff;
             padding: 0.75rem;
         }
 
         .figure-wide {
-            grid-column: 1 / -1;
+            grid-column: auto;
         }
 
         .figure-wide img {
-            max-height: 320px;
+            max-height: 230px;
         }
 
         figcaption {
@@ -364,6 +364,7 @@
             .hero-metrics { min-width: 0; }
             .poster-grid { grid-template-columns: 1fr; }
             .panel.wide, .panel.full { grid-column: auto; }
+            .figure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
             .impact-grid { grid-template-columns: 1fr; }
         }
 
