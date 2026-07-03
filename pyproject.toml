@@ -1,4 +1,6 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
-
+filterwarnings = [
+    "ignore:scipy\\.optimize:DeprecationWarning:sklearn\\.linear_model\\._logistic",
+]

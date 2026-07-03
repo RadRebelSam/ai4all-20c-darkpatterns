@@ -30,7 +30,7 @@ This section documents the main project decisions and why we made them.
 | Confidence threshold | The Playwright scanner shows dark-pattern results above a default 65% confidence threshold. | This hides weaker predictions during the demo and keeps attention on higher-confidence examples. Confidence is model certainty, not a guarantee that the prediction is correct. |
 | Discount false-positive filter | Suppressed plain price/discount snippets unless they include pressure language. | Real sale pages often include harmless text like `Previous price: $99.00 47% off`. The filter reduces obvious false positives while still allowing pressure phrases like `Hurry, 47% off ends soon`. |
 | Product-title false-positive filter | Suppressed catalog-style product titles/spec snippets unless they include pressure language. | Live tests showed false positives on product titles with model numbers, storage sizes, camera specs, or labels like `US Stock`. These are usually catalog metadata, not manipulative language. |
-| Second-stage category model | Trained a separate category classifier after the main binary detector. | The main model answers whether text looks suspicious. The category model adds a likely type such as `Urgency`, `Scarcity`, or `Social Proof`, but it is limited by category imbalance and should be presented as supporting detail. |
+| Second-stage category model | Trained a separate category classifier after the main binary detector. | The main model answers whether text looks suspicious. The category model adds a likely type such as `Urgency`, `Scarcity`, or `Social Proof`, but it is limited by category imbalance and should be presented as supporting detail rather than a final category judgment. |
 | Sentiment/context decision | Documented sentiment and UI context as future work instead of adding them now. | Sentiment can help with shame/fear/guilt language, but dark patterns depend heavily on button roles, popup placement, timing, and user flow. Adding this now would require new labeled data and a more complex pipeline. |
 | Production limitation | Documented OCR, screenshot, color/layout, DOM/CSS, and UX-flow detection as future production layers. | Even with Playwright, this project is text-first. A real production detector would need additional evidence for image text, visual hierarchy, hidden links, checkout friction, cancellation difficulty, and other non-text patterns. |
 
@@ -52,7 +52,7 @@ The current project uses **two trained machine learning models**:
 
 Both models use TF-IDF text features with unigrams and bigrams. TF-IDF converts each snippet into a numeric vector where distinctive words and phrases receive higher weight. Bigrams help capture phrases such as `limited time` and `only left`.
 
-The second model should be treated as an explanation aid, not a final label. It is trained only on dark-pattern examples, and some categories have much less data than others.
+The second model should be treated as an explanation aid, not a final label. It is trained only on dark-pattern examples, and some categories have much less data than others. In the current category dataset, common classes such as `Scarcity` and `Social Proof` have hundreds of examples, while `Sneaking` has 22 examples and `Obstruction` has 55 examples after deduplication. This means the likely-type output is useful for interpretation, but rare-category predictions need extra human review.
 
 ## Model 1: Binary Detection Results
 
@@ -80,14 +80,15 @@ The second-stage model is trained only on examples that are already labeled as d
 | Naive Bayes | 0.914 | 0.798 | 0.750 | 0.768 | Fast baseline |
 | Decision Tree | 0.828 | 0.746 | 0.677 | 0.695 | Lowest category performance |
 
-Macro F1 is used here because the category dataset is imbalanced. It gives each category more equal weight, so small classes like `Sneaking`, `Obstruction`, and `Forced Action` still matter in the score.
+Macro F1 is used here because the category dataset is imbalanced. It gives each category more equal weight, so small classes like `Sneaking`, `Obstruction`, and `Forced Action` still matter in the score. Even with a strong macro F1, the rarest categories should be presented cautiously because the model has fewer examples to learn their language patterns.
 
 ## Dataset
 
 - **Primary binary dataset:** Krish Uppal balanced dataset, 2,356 examples, 50/50 split between dark-pattern and not-dark-pattern text.
 - **Second-stage category dataset:** compatible category-labeled dark-pattern rows from Adarsh, Devitachi, and Mohit sources, deduplicated to 1,861 dark-pattern examples.
 - **Category labels predicted by Model 2:** Forced Action, Misdirection, Obstruction, Scarcity, Sneaking, Social Proof, and Urgency.
-- **Source:** Kaggle, English-language e-commerce websites.
+- **Sources:** Kaggle datasets from Krish Uppal, Adarsh M09, Devitachi, Mohit Sharma, and Akash Nath; all are English-language e-commerce or deceptive-pattern text sources.
+- **Category imbalance note:** after deduplication, `Scarcity` has 506 examples and `Social Proof` has 460, while `Sneaking` has 22 and `Obstruction` has 55. This is why the app describes Model 2 output as a likely type.
 
 ## Visualizations
 
@@ -112,6 +113,8 @@ Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+
+The dependency versions in `requirements.txt` are pinned to compatible ranges so that fresh installs are more reproducible. The `numpy` upper bound avoids known SciPy/scikit-learn compatibility warnings on newer NumPy releases.
 
 Train models and save metrics:
 
@@ -215,13 +218,19 @@ To show the raw model behavior without this filter:
 python scripts/scan_page.py https://www.ebay.com/deals --no-price-filter --no-product-filter --no-context-filter
 ```
 
+## Error Analysis and External Validity
+
+The model performs strongly on the curated held-out test set, but live webpage scans revealed a different kind of challenge: many snippets on real shopping pages are short, repetitive, or missing visual context. Examples such as `Previous price: $99.00 47% off`, camera specifications, bare counters, and short testimonials can look suspicious to a text-only model even when they are ordinary catalog content.
+
+The current demo handles those cases with post-processing filters, but the better long-term solution is better validation data. A stronger next evaluation would keep the original held-out test set for model comparison, then add a separate external validation set from live websites that were not part of the Kaggle datasets. That external set should report precision, recall, F1, false positives, and false negatives by website type and dark-pattern category.
+
 ## Responsible AI
 
 This model should be used as a review aid rather than a final judgment. Dark patterns can depend on full page layout, timing, checkout flow, and visual design; this version only analyzes text. A false positive from this model could expose a legitimate business to unwarranted scrutiny; a false negative could leave a consumer unprotected. Model predictions should be one input into a larger review process, not a standalone verdict.
 
 Key limitations:
 - Training data is English-language, Western-focused e-commerce; the model may not generalize to other languages, regions, or domains
-- Some categories (Obstruction, Sneaking, Forced Action) have very few examples and are more likely to be misclassified
+- Some categories have very few examples after deduplication, especially `Sneaking` with 22 examples and `Obstruction` with 55, so likely-type predictions for rare categories are more likely to be misclassified
 - Text-only features cannot capture visual manipulation, flow-based dark patterns, or context-dependent intent
 - The Playwright scanner can often capture popup text when it appears in the DOM, but it may miss cross-origin iframes, image/canvas text, closed shadow DOM content, or websites that block automation
 - The Streamlit/scanner price-discount filter is a rule-based demo safeguard, not a substitute for better labeled training data
@@ -231,16 +240,22 @@ Key limitations:
 - Color and layout analysis would require computer-vision or DOM/CSS features, not just TF-IDF text features
 - Production UX-flow detection would require scripted user journeys and event logs to measure friction, repeated interruptions, hidden fees, cancellation difficulty, and forced-choice paths
 
+Bias mitigation steps used or planned:
+- Use stratified train/test splits so the binary model sees similar dark-pattern and non-dark-pattern proportions in evaluation
+- Report macro F1 for category classification so rare categories influence the score instead of being hidden by common classes
+- Keep category predictions labeled as likely or possible types, with human review for low-data categories and high-impact decisions
+- Add more negative examples from normal sale pages, product catalogs, and benign marketing copy before treating scanner output as evidence
+- Build an external validation set from real webpages across multiple e-commerce domains, then audit false positives and false negatives by category, source, and website type
+- Expand beyond English e-commerce only after collecting multilingual and non-commerce examples with consistent labels
+
 ## Next Steps
 
-- Add cross-lingual examples and evaluate generalization beyond English e-commerce
-- Extend to multi-class classification to identify which *type* of dark pattern is present
-- Integrate visual features (screenshot-based detection) to catch non-textual dark patterns
-- Explore richer context features, such as nearby button text, popup/modal location, DOM structure, sentiment, and checkout-step information
-- Add screenshot + OCR experiments for image-based text and visual banners
-- Add flow-based evaluation for checkout, subscription, cancellation, and unsubscribe journeys
-- Evaluate on real-world web-scraped data rather than curated datasets
-- Partner with consumer advocacy groups to validate findings in deployment
+- **By August 2026:** collect and label at least 300 real webpage snippets from live e-commerce pages, including normal discounts and product catalog text, then retrain to reduce demo false positives.
+- **By September 2026:** create a 100-example external validation set from websites not represented in the Kaggle datasets and report precision, recall, F1, and false-positive examples separately from the original test set.
+- **By October 2026:** add at least 50 examples for each rare category, especially `Sneaking` and `Obstruction`, then rerun the category model and compare per-class F1 before and after balancing.
+- **By November 2026:** prototype screenshot + OCR extraction on 50 product or checkout pages to test whether image-based banners add missing text evidence.
+- **By December 2026:** script three UX-flow audits, such as checkout, cancellation, and cookie-consent journeys, and measure friction using step counts and repeated interruptions.
+- **After stronger validation:** consider a browser-extension prototype that clearly labels predictions as review leads, not proof of deceptive intent.
 
 ## Troubleshooting
 
@@ -280,6 +295,8 @@ These steps should resolve the permission error when installing dependencies on 
 
 5. European Parliament. (2022). Digital Services Act. *Regulation (EU) 2022/2065*. https://eur-lex.europa.eu/eli/reg/2022/2065/oj
 
-6. Luguri, J. & Strahilevitz, L. J. (2021). Shining a Light on Dark Patterns. *Journal of Legal Analysis*, 13(1), 43–109. https://doi.org/10.1093/jla/laaa006
+6. Luguri, J. & Strahilevitz, L. J. (2021). Shining a Light on Dark Patterns. *Journal of Legal Analysis*, 13(1), 43-109. https://doi.org/10.1093/jla/laaa006
 
-7. Narayanan, A., Mathur, A., Chetty, M., & Kshirsagar, M. (2020). Dark Patterns: Past, Present, and Future. *Queue*, 18(2), 67–92. https://doi.org/10.1145/3400899.3400901
+7. Narayanan, A., Mathur, A., Chetty, M., & Kshirsagar, M. (2020). Dark Patterns: Past, Present, and Future. *Queue*, 18(2), 67-92. https://doi.org/10.1145/3400899.3400901
+
+Data sources: Krish Uppal dark-patterns dataset, Adarsh M09 dark-pattern dataset, Devitachi dark-pattern dataset, Mohit Sharma dark-patterns on e-commerce platforms dataset, and Akash Nath deceptive-patterns classification data from Kaggle.

@@ -3,6 +3,7 @@
 # Ensure project root is on sys.path so `from src import ...` works when
 # Streamlit launches the app from a different working directory.
 import html
+import re
 import sys
 from pathlib import Path
 
@@ -13,7 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 import streamlit as st
 
 from src.data import load_primary_binary_dataset
-from src.filters import infer_dark_pattern_type
+from src import filters as demo_filters
 from src.modeling import make_pipeline, model_names
 from src.predict import (
     get_or_train_category_model,
@@ -373,6 +374,48 @@ def confidence_detail(confidence: float | None) -> str:
     if confidence is None:
         return "This model does not report a percent probability."
     return f"{confidence:.1%} probability for this answer"
+
+
+def infer_dark_pattern_type(text: str) -> str:
+    """Infer a likely category, even during Streamlit stale-module reloads."""
+    helper = getattr(demo_filters, "infer_dark_pattern_type", None)
+    if helper is not None:
+        return helper(text)
+
+    matches = []
+    if re.search(
+        r"hurry|last chance|limited time|limited offer|ends soon|ends tonight|"
+        r"sale ends|deal ends|expires|act now",
+        text,
+        re.IGNORECASE,
+    ):
+        matches.append("Urgency")
+    if re.search(
+        r"almost gone|selling fast|only\s+\d+\s+(left|remaining)|"
+        r"\d+\s+(left|remaining)\s+in stock|low stock|while supplies last",
+        text,
+        re.IGNORECASE,
+    ):
+        matches.append("Scarcity")
+    if re.search(
+        r"\d+[\d,]*\s+(people|customers|users|shoppers|visitors|members)\b|"
+        r"people are (looking|viewing|watching)|someone just bought|"
+        r"popular|trending|best[- ]?seller|reviews?|ratings?|deals bought",
+        text,
+        re.IGNORECASE,
+    ):
+        matches.append("Social proof")
+    if re.search(
+        r"(no thanks|i don't want|i do not want|not interested).*"
+        r"(save|deal|offer|discount|money)",
+        text,
+        re.IGNORECASE,
+    ):
+        matches.append("Confirmshaming")
+
+    if not matches:
+        return "Unclear from text alone"
+    return " + ".join(matches)
 
 
 @st.cache_resource(show_spinner="Loading category model...")

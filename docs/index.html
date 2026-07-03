@@ -417,7 +417,7 @@
                 <h2>From Dataset to Prediction</h2>
                 <div class="mini-grid">
                     <div class="mini-card"><strong>Primary</strong><p>Krish Uppal balanced dataset: 1,178 dark-pattern and 1,178 non-dark-pattern snippets.</p></div>
-                    <div class="mini-card"><strong>Expanded</strong><p>Devitachi and Akash Nath sources support robustness checks after cleaning and deduplication.</p></div>
+                    <div class="mini-card"><strong>Expanded</strong><p>Adarsh, Devitachi, Mohit Sharma, and Akash Nath sources support category modeling and robustness checks after cleaning.</p></div>
                 </div>
                 <div class="pipeline">
                     <div class="pipe-step">1. Normalize columns: text, label, category, source</div>
@@ -446,8 +446,8 @@
                 <p>After the binary detector flags text as suspicious, a second model predicts the likely dark-pattern type. The best category model is Linear SVM with macro F1 around <strong>0.894</strong>.</p>
                 <ul class="bullets">
                     <li>Common types: Scarcity, Social Proof, Urgency, Misdirection</li>
-                    <li>Rarer types: Forced Action, Obstruction, Sneaking</li>
-                    <li>Reported as a likely type because category labels are imbalanced</li>
+                    <li>Rarer types need caution: Sneaking has 22 examples and Obstruction has 55 after deduplication</li>
+                    <li>Reported as a likely type, not a final label, because category data is imbalanced</li>
                 </ul>
             </article>
 
@@ -528,6 +528,7 @@
                 <h2>What We Learned From Testing</h2>
                 <p>Real webpage scans initially flagged ordinary sale labels and catalog titles such as <code>Previous price: $99.00 47% off</code> or camera specs with <code>US Stock</code>.</p>
                 <p>The demo now filters these low-context false positives while still reviewing urgency/scarcity language like <code>limited time</code>, <code>low stock</code>, and <code>only 2 left</code>. Users can turn filters off to inspect raw model behavior.</p>
+                <p>For stronger external validity, the next evaluation should test a separate live-web validation set and report false positives and false negatives by website type and category.</p>
             </article>
 
             <article class="panel">
@@ -558,6 +559,10 @@
                         <h3>Limits</h3>
                         <p>The project is text-first. Real production detection would need OCR, screenshot analysis, DOM/CSS features, color/layout signals, and scripted UX-flow testing.</p>
                     </div>
+                    <div class="impact-card">
+                        <h3>Mitigation</h3>
+                        <p>We use stratified evaluation, macro F1 for rare categories, likely-type wording, demo false-positive filters, and planned external validation with human review.</p>
+                    </div>
                 </div>
             </article>
 
@@ -565,11 +570,11 @@
                 <span class="label">Future Work</span>
                 <h2>Next Steps</h2>
                 <ul class="bullets">
-                    <li>Use hard-negative mining to improve model training from current mistakes.</li>
-                    <li>Try calibrated Linear SVM and transformer-based NLP models.</li>
-                    <li>Add screenshot + OCR experiments for image-based text.</li>
-                    <li>Evaluate UI flow manipulation in checkout, cancellation, cookie consent, and unsubscribe journeys.</li>
-                    <li>Build a browser-extension prototype after stronger validation.</li>
+                    <li><strong>August 2026:</strong> label 300 real webpage snippets, including normal discounts and product catalog text.</li>
+                    <li><strong>September 2026:</strong> evaluate on 100 external examples from websites outside the Kaggle sources.</li>
+                    <li><strong>October 2026:</strong> add 50 examples for each rare category and compare per-class F1.</li>
+                    <li><strong>November 2026:</strong> test screenshot + OCR extraction on 50 product or checkout pages.</li>
+                    <li><strong>December 2026:</strong> script checkout, cancellation, and cookie-consent flow audits.</li>
                 </ul>
             </article>
 
@@ -585,6 +590,7 @@
                 <span class="label">Citations</span>
                 <h2>Selected References</h2>
                 <p>Mathur et al. (2019), <em>Dark Patterns at Scale</em>; Gray et al. (2018), <em>The Dark (Patterns) Side of UX Design</em>; FTC (2022), <em>Bringing Dark Patterns to Light</em>; Luguri &amp; Strahilevitz (2021), <em>Shining a Light on Dark Patterns</em>; Narayanan et al. (2020), <em>Dark Patterns: Past, Present, and Future</em>; Ramteke et al. (2024), <em>Detecting Deceptive Dark Patterns in E-commerce Platforms</em>; Koh &amp; Seah (2023), <em>Unintended Consumption</em>.</p>
+                <p><strong>Data sources:</strong> Kaggle datasets from Krish Uppal, Adarsh M09, Devitachi, Mohit Sharma, and Akash Nath.</p>
             </article>
         </section>
 
