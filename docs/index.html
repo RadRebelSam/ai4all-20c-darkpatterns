@@ -215,8 +215,8 @@
 
         .figure-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 1.15rem;
+            grid-template-columns: 1fr;
+            gap: 1.35rem;
             margin-top: 1rem;
         }
 
@@ -230,10 +230,11 @@
         figure img {
             display: block;
             width: 100%;
-            height: 330px;
+            height: auto;
+            max-height: 620px;
             object-fit: contain;
             background: #fff;
-            padding: 0.7rem;
+            padding: 1rem;
         }
 
         .figure-wide {
@@ -241,7 +242,7 @@
         }
 
         .figure-wide img {
-            height: 460px;
+            max-height: 720px;
         }
 
         figcaption {
