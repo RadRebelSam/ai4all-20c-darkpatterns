@@ -11,13 +11,16 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-from sklearn.metrics import confusion_matrix
+from matplotlib.patches import FancyBboxPatch
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
+from sklearn.model_selection import train_test_split
 
 from src.data import (
     CATEGORY_COLUMN,
     LABEL_COLUMN,
     NOT_DARK_PATTERN,
     TEXT_COLUMN,
+    load_dark_pattern_category_dataset,
     load_primary_binary_dataset,
 )
 from src.modeling import make_pipeline, split_dataset
@@ -135,6 +138,49 @@ def plot_category_model_comparison() -> None:
     print("  Saved category_model_comparison.png")
 
 
+def plot_two_stage_pipeline() -> None:
+    """Show the current binary-then-category model flow."""
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.axis("off")
+
+    boxes = [
+        (0.04, 0.56, 0.20, 0.24, "Website text", "Snippet from app\\nor webpage scan", PALETTE[2]),
+        (0.31, 0.56, 0.22, 0.24, "Model 1", "Binary detector\\nDark vs Not Dark", PALETTE[0]),
+        (0.61, 0.70, 0.27, 0.20, "Not Dark Pattern", "Stop: no type needed", PALETTE[7]),
+        (0.61, 0.37, 0.27, 0.22, "Model 2", "Category classifier\\nfor suspicious text", PALETTE[1]),
+        (0.38, 0.08, 0.50, 0.18, "Likely type", "Urgency, Scarcity, Social Proof, Misdirection, Obstruction, Sneaking, Forced Action", PALETTE[4]),
+    ]
+
+    for x, y, w, h, title, subtitle, color in boxes:
+        patch = FancyBboxPatch(
+            (x, y),
+            w,
+            h,
+            boxstyle="round,pad=0.025,rounding_size=0.035",
+            linewidth=1.5,
+            edgecolor="#2f3437",
+            facecolor=color,
+            alpha=0.9,
+        )
+        ax.add_patch(patch)
+        ax.text(x + w / 2, y + h * 0.64, title, ha="center", va="center", fontsize=15, fontweight="bold")
+        ax.text(x + w / 2, y + h * 0.35, subtitle, ha="center", va="center", fontsize=10)
+
+    arrow_kw = dict(arrowstyle="->", color="#2f3437", lw=2, shrinkA=4, shrinkB=4)
+    ax.annotate("", xy=(0.31, 0.68), xytext=(0.24, 0.68), arrowprops=arrow_kw)
+    ax.annotate("", xy=(0.61, 0.79), xytext=(0.53, 0.72), arrowprops=arrow_kw)
+    ax.annotate("", xy=(0.61, 0.49), xytext=(0.53, 0.64), arrowprops=arrow_kw)
+    ax.annotate("", xy=(0.63, 0.26), xytext=(0.74, 0.37), arrowprops=arrow_kw)
+
+    ax.text(0.56, 0.82, "if not suspicious", fontsize=9, color="#475569")
+    ax.text(0.54, 0.53, "if suspicious", fontsize=9, color="#475569")
+    ax.set_title("Two-Stage Dark Pattern Recognition Pipeline", fontsize=16, fontweight="bold", pad=12)
+
+    save_figure(fig, "two_stage_pipeline.png")
+    plt.close(fig)
+    print("  Saved two_stage_pipeline.png")
+
+
 # ---------------------------------------------------------------------------
 # 2.  Confusion Matrix  (Logistic Regression, 80/20 split)
 # ---------------------------------------------------------------------------
@@ -170,6 +216,207 @@ def plot_confusion_matrix() -> None:
     save_figure(fig, "confusion_matrix.png")
     plt.close(fig)
     print("  Saved confusion_matrix.png")
+
+
+def plot_category_confusion_matrix() -> None:
+    """Plot the second-stage category model confusion matrix."""
+    df = load_dark_pattern_category_dataset()
+    x_train, x_test, y_train, y_test = train_test_split(
+        df[TEXT_COLUMN],
+        df[CATEGORY_COLUMN],
+        test_size=0.2,
+        stratify=df[CATEGORY_COLUMN],
+        random_state=42,
+    )
+
+    pipeline = make_pipeline("Linear SVM")
+    pipeline.fit(x_train, y_train)
+    y_pred = pipeline.predict(x_test)
+    labels = sorted(y_test.unique())
+    cm = confusion_matrix(y_test, y_pred, labels=labels)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt="d",
+        cmap="YlGnBu",
+        xticklabels=labels,
+        yticklabels=labels,
+        linewidths=0.5,
+        ax=ax,
+    )
+    ax.set_xlabel("Predicted", fontsize=12)
+    ax.set_ylabel("Actual", fontsize=12)
+    ax.set_title("Category Confusion Matrix - Linear SVM", fontsize=14, fontweight="bold")
+    ax.tick_params(axis="x", rotation=35)
+    ax.tick_params(axis="y", rotation=0)
+
+    plt.tight_layout()
+    save_figure(fig, "category_confusion_matrix.png")
+    plt.close(fig)
+    print("  Saved category_confusion_matrix.png")
+
+
+def plot_category_per_class_f1() -> None:
+    """Plot per-category F1 scores for the best second-stage model."""
+    df = load_dark_pattern_category_dataset()
+    x_train, x_test, y_train, y_test = train_test_split(
+        df[TEXT_COLUMN],
+        df[CATEGORY_COLUMN],
+        test_size=0.2,
+        stratify=df[CATEGORY_COLUMN],
+        random_state=42,
+    )
+
+    pipeline = make_pipeline("Linear SVM")
+    pipeline.fit(x_train, y_train)
+    y_pred = pipeline.predict(x_test)
+    labels = sorted(y_test.unique())
+    precision, recall, f1, support = precision_recall_fscore_support(
+        y_test,
+        y_pred,
+        labels=labels,
+        zero_division=0,
+    )
+    scores = pd.DataFrame(
+        {
+            "category": labels,
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "support": support,
+        }
+    ).sort_values("f1")
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    bars = ax.barh(scores["category"], scores["f1"], color=PALETTE[1])
+    for bar, val, count in zip(bars, scores["f1"], scores["support"]):
+        ax.text(
+            val + 0.015,
+            bar.get_y() + bar.get_height() / 2,
+            f"{val:.2f}  n={count}",
+            va="center",
+            fontsize=9,
+        )
+    ax.set_xlim(0, 1.08)
+    ax.set_xlabel("F1 Score")
+    ax.set_title("Second-Stage Model F1 by Dark Pattern Type", fontsize=14, fontweight="bold")
+    ax.text(
+        0,
+        -0.95,
+        "Lower scores often reflect fewer training examples or overlap between similar categories.",
+        fontsize=9,
+        color="#475569",
+    )
+
+    plt.tight_layout()
+    save_figure(fig, "category_per_class_f1.png")
+    plt.close(fig)
+    print("  Saved category_per_class_f1.png")
+
+
+def plot_model_summary_card() -> None:
+    """Create a compact visual comparing the two trained models."""
+    fig, ax = plt.subplots(figsize=(11, 5))
+    ax.axis("off")
+    fig.patch.set_facecolor("#f8fafc")
+
+    cards = [
+        (
+            0.06,
+            "Model 1",
+            "Binary detector",
+            "TF-IDF + Logistic Regression",
+            "F1 = 0.936",
+            "Answers: Dark Pattern or Not Dark Pattern",
+            PALETTE[0],
+        ),
+        (
+            0.54,
+            "Model 2",
+            "Type classifier",
+            "TF-IDF + Linear SVM",
+            "Macro F1 = 0.894",
+            "Answers: likely dark-pattern category",
+            PALETTE[1],
+        ),
+    ]
+
+    for x, label, title, model, score, note, color in cards:
+        patch = FancyBboxPatch(
+            (x, 0.18),
+            0.40,
+            0.62,
+            boxstyle="round,pad=0.025,rounding_size=0.035",
+            linewidth=1.2,
+            edgecolor="#cbd5e1",
+            facecolor="white",
+        )
+        ax.add_patch(patch)
+        ax.text(x + 0.04, 0.68, label, fontsize=12, color="#64748b", fontweight="bold")
+        ax.text(x + 0.04, 0.58, title, fontsize=20, color="#0f172a", fontweight="bold")
+        ax.text(x + 0.04, 0.47, model, fontsize=12, color="#334155")
+        ax.text(x + 0.04, 0.35, score, fontsize=24, color=color, fontweight="bold")
+        ax.text(x + 0.04, 0.26, note, fontsize=11, color="#475569")
+
+    ax.annotate("", xy=(0.53, 0.49), xytext=(0.46, 0.49), arrowprops=dict(arrowstyle="->", lw=2, color="#334155"))
+    ax.text(0.50, 0.55, "if suspicious", ha="center", fontsize=9, color="#64748b")
+    ax.set_title("Two Trained Models, Two Different Jobs", fontsize=17, fontweight="bold", pad=10)
+
+    save_figure(fig, "two_model_summary_card.png")
+    plt.close(fig)
+    print("  Saved two_model_summary_card.png")
+
+
+def plot_example_result_flow() -> None:
+    """Visualize one example moving through both models."""
+    example = "Only 2 left in stock. Order now before it sells out."
+    binary_model = make_pipeline("Logistic Regression")
+    binary_df = load_primary_binary_dataset()
+    binary_model.fit(binary_df[TEXT_COLUMN], binary_df[LABEL_COLUMN])
+    label = int(binary_model.predict([example])[0])
+    prob = binary_model.predict_proba([example])[0][label]
+
+    category_df = load_dark_pattern_category_dataset()
+    category_model = make_pipeline("Linear SVM")
+    category_model.fit(category_df[TEXT_COLUMN], category_df[CATEGORY_COLUMN])
+    category = category_model.predict([example])[0]
+
+    fig, ax = plt.subplots(figsize=(12, 4.8))
+    ax.axis("off")
+    fig.patch.set_facecolor("#ffffff")
+
+    steps = [
+        ("Input text", f'"{example}"'),
+        ("Model 1 result", f"Dark Pattern\\nconfidence {prob:.1%}"),
+        ("Model 2 result", f"Likely type\\n{category}"),
+    ]
+    xs = [0.06, 0.38, 0.70]
+    colors = [PALETTE[2], PALETTE[0], PALETTE[1]]
+    for x, (title, body), color in zip(xs, steps, colors):
+        patch = FancyBboxPatch(
+            (x, 0.30),
+            0.24,
+            0.38,
+            boxstyle="round,pad=0.025,rounding_size=0.035",
+            linewidth=1.3,
+            edgecolor="#334155",
+            facecolor=color,
+            alpha=0.9,
+        )
+        ax.add_patch(patch)
+        ax.text(x + 0.12, 0.57, title, ha="center", fontsize=13, fontweight="bold")
+        ax.text(x + 0.12, 0.43, body, ha="center", va="center", fontsize=10)
+
+    arrow_kw = dict(arrowstyle="->", lw=2, color="#334155", shrinkA=5, shrinkB=5)
+    ax.annotate("", xy=(0.38, 0.49), xytext=(0.30, 0.49), arrowprops=arrow_kw)
+    ax.annotate("", xy=(0.70, 0.49), xytext=(0.62, 0.49), arrowprops=arrow_kw)
+    ax.set_title("Example Result Flow Through Both Models", fontsize=16, fontweight="bold", pad=12)
+
+    save_figure(fig, "example_result_flow.png")
+    plt.close(fig)
+    print("  Saved example_result_flow.png")
 
 
 # ---------------------------------------------------------------------------
@@ -268,9 +515,14 @@ def plot_top_features() -> None:
 
 def main() -> None:
     print("Generating visualizations...")
+    plot_two_stage_pipeline()
+    plot_model_summary_card()
+    plot_example_result_flow()
     plot_model_comparison()
     plot_category_model_comparison()
     plot_confusion_matrix()
+    plot_category_confusion_matrix()
+    plot_category_per_class_f1()
     plot_category_distribution()
     plot_top_features()
     print("Done - all figures saved to reports/figures/ and docs/figures/")
