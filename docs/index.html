@@ -215,7 +215,7 @@
 
         .figure-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: 0.85rem;
             margin-top: 0.8rem;
         }
@@ -303,13 +303,13 @@
         <header class="hero">
             <div>
                 <h1>Dark Pattern Recognition</h1>
-                <p class="subtitle">A poster-style showcase of a supervised NLP project that detects manipulative e-commerce language while documenting responsible AI limits.</p>
+                <p class="subtitle">A poster-style showcase of a supervised NLP project that detects manipulative e-commerce language, adds a second-stage type classifier, and documents responsible AI limits.</p>
                 <p class="team">AI4ALL Ignite 2026 | Team 20C | Akanksha Madhu Kiran, Dexin (Sam) Yang, Rakshita Saroha, Rutvi Karnik, Samyog Maharjan</p>
             </div>
             <div class="hero-metrics" aria-label="Project metrics">
                 <div class="metric"><strong>2,356</strong><span>Primary Rows</span></div>
                 <div class="metric"><strong>0.936</strong><span>Best F1</span></div>
-                <div class="metric"><strong>5</strong><span>Models Tested</span></div>
+                <div class="metric"><strong>2</strong><span>Training Stages</span></div>
                 <div class="metric"><strong>2</strong><span>Demo Modes</span></div>
             </div>
         </header>
@@ -318,7 +318,7 @@
             <article class="panel teal">
                 <span class="label">Project Overview</span>
                 <h2>What We Built</h2>
-                <p>Dark patterns are deceptive UX or marketing tactics that pressure users into choices they may not fully intend. This project classifies short e-commerce text snippets as <strong>Dark Pattern</strong> or <strong>Not Dark Pattern</strong>.</p>
+                <p>Dark patterns are deceptive UX or marketing tactics that pressure users into choices they may not fully intend. This project first classifies short e-commerce text snippets as <strong>Dark Pattern</strong> or <strong>Not Dark Pattern</strong>, then estimates a likely type for suspicious text.</p>
                 <div class="callout">
                     <h3>Research Question</h3>
                     <p>How effectively can supervised text-classification models detect dark-pattern language, and what are the limits of a text-first consumer-protection tool?</p>
@@ -336,7 +336,8 @@
                     <div class="pipe-step">1. Normalize columns: text, label, category, source</div>
                     <div class="pipe-step">2. Split data: 80/20 random stratified train/test split</div>
                     <div class="pipe-step">3. Convert text to TF-IDF unigram + bigram features</div>
-                    <div class="pipe-step">4. Predict with Logistic Regression and compare against four baselines</div>
+                    <div class="pipe-step">4. Predict dark-pattern vs not-dark-pattern with Logistic Regression</div>
+                    <div class="pipe-step">5. Run a second-stage category model for likely type: urgency, scarcity, social proof, and more</div>
                 </div>
             </article>
 
@@ -348,6 +349,18 @@
                     <li>Type: supervised binary text classification</li>
                     <li>Input: website text snippet</li>
                     <li>Output: label + confidence score</li>
+                    <li>Second stage: category classifier for suspicious snippets</li>
+                </ul>
+            </article>
+
+            <article class="panel teal">
+                <span class="label">Category Model</span>
+                <h2>Likely Type Recognition</h2>
+                <p>After the binary detector flags text as suspicious, a second model predicts the likely dark-pattern type. The best category model is Linear SVM with macro F1 around <strong>0.894</strong>.</p>
+                <ul class="bullets">
+                    <li>Common types: Scarcity, Social Proof, Urgency, Misdirection</li>
+                    <li>Rarer types: Forced Action, Obstruction, Sneaking</li>
+                    <li>Reported as a likely type because category labels are imbalanced</li>
                 </ul>
             </article>
 
@@ -376,7 +389,11 @@
                 <div class="figure-grid">
                     <figure>
                         <img src="figures/model_comparison.png" alt="Model comparison chart">
-                        <figcaption>Model Comparison</figcaption>
+                        <figcaption>Binary Model Comparison</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="figures/category_model_comparison.png" alt="Category model comparison chart">
+                        <figcaption>Category Model Comparison</figcaption>
                     </figure>
                     <figure>
                         <img src="figures/confusion_matrix.png" alt="Confusion matrix">
@@ -397,9 +414,9 @@
                 <span class="label">Demo</span>
                 <h2>Two Ways to Try It</h2>
                 <ul class="bullets">
-                    <li><strong>Streamlit app:</strong> paste text and see prediction + confidence.</li>
-                    <li><strong>Playwright scanner:</strong> open a live webpage, extract visible text, split snippets, and score each snippet.</li>
-                    <li><strong>Safeguards:</strong> suppress plain discounts and product specs unless pressure language is present.</li>
+                    <li><strong>Streamlit app:</strong> paste text and see prediction, confidence, and likely type.</li>
+                    <li><strong>Webpage scanner:</strong> open a live webpage with Playwright, extract visible text, split snippets, and score each snippet.</li>
+                    <li><strong>Safeguards:</strong> optional filters suppress plain discounts, product specs, testimonials, counters, and vague snippets unless pressure language is present.</li>
                 </ul>
             </article>
 
@@ -407,7 +424,7 @@
                 <span class="label">Error Analysis</span>
                 <h2>What We Learned From Testing</h2>
                 <p>Real webpage scans initially flagged ordinary sale labels and catalog titles such as <code>Previous price: $99.00 47% off</code> or camera specs with <code>US Stock</code>.</p>
-                <p>The demo now filters these low-context false positives while still reviewing urgency/scarcity language like <code>limited time</code>, <code>low stock</code>, and <code>only 2 left</code>.</p>
+                <p>The demo now filters these low-context false positives while still reviewing urgency/scarcity language like <code>limited time</code>, <code>low stock</code>, and <code>only 2 left</code>. Users can turn filters off to inspect raw model behavior.</p>
             </article>
 
             <article class="panel">

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
+import sys
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -11,6 +13,7 @@ from sklearn.pipeline import Pipeline
 from src.filters import (
     contains_pressure_language,
     is_low_context_product_snippet,
+    is_low_context_web_snippet,
     is_simple_price_or_discount_snippet,
 )
 from src.predict import Prediction, predict_text
@@ -90,6 +93,7 @@ def score_snippets(
     min_confidence: float | None = None,
     suppress_simple_discounts: bool = True,
     suppress_product_titles: bool = True,
+    suppress_context_light: bool = True,
 ) -> list[SnippetPrediction]:
     """Run the trained model over snippets and sort likely dark patterns first."""
     results = []
@@ -115,6 +119,12 @@ def score_snippets(
             and is_low_context_product_snippet(snippet)
         ):
             continue
+        if (
+            suppress_context_light
+            and prediction.label == 1
+            and is_low_context_web_snippet(snippet)
+        ):
+            continue
         results.append(SnippetPrediction(snippet=snippet, prediction=prediction))
 
     return sorted(
@@ -138,6 +148,11 @@ def extract_visible_text_with_playwright(
     Raises:
         RuntimeError: if Playwright is not installed or browser binaries are missing.
     """
+    if sys.platform.startswith("win") and hasattr(
+        asyncio, "WindowsProactorEventLoopPolicy"
+    ):
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
     try:
         from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright
@@ -156,7 +171,7 @@ def extract_visible_text_with_playwright(
             text = page.locator("body").inner_text(timeout=10000)
             browser.close()
             return text
-    except PlaywrightError as exc:
+    except (PlaywrightError, NotImplementedError) as exc:
         raise RuntimeError(
             "Unable to scan the page with Playwright. If this is the first run, "
             "install the browser with `python -m playwright install chromium`."

@@ -144,6 +144,18 @@ def load_secondary_category_datasets() -> pd.DataFrame:
     return deduplicate_text(combined)
 
 
+def load_dark_pattern_category_dataset() -> pd.DataFrame:
+    """Load dark-pattern rows for category classification.
+
+    This dataset is for the second-stage model that predicts the likely dark
+    pattern type after text has already been identified as suspicious.
+    """
+    df = load_secondary_category_datasets()
+    df = df[df[LABEL_COLUMN] == 1].copy()
+    df = df[df[CATEGORY_COLUMN] != NOT_DARK_PATTERN].copy()
+    return df.reset_index(drop=True)
+
+
 def deduplicate_text(df: pd.DataFrame) -> pd.DataFrame:
     """Drop exact duplicate text rows while keeping the first source."""
     return df.drop_duplicates(subset=[TEXT_COLUMN]).reset_index(drop=True)
@@ -170,6 +182,20 @@ def validate_binary_dataset(df: pd.DataFrame) -> None:
     labels = set(df[LABEL_COLUMN].unique())
     if labels != {0, 1}:
         raise ValueError(f"Expected binary labels {{0, 1}}, found: {labels}")
+
+
+def validate_category_dataset(df: pd.DataFrame) -> None:
+    """Validate minimum expectations for dark-pattern category classification."""
+    required = {TEXT_COLUMN, CATEGORY_COLUMN, SOURCE_COLUMN}
+    missing = required.difference(df.columns)
+    if missing:
+        raise ValueError(f"Dataset missing required columns: {sorted(missing)}")
+    if df[TEXT_COLUMN].isna().any() or (df[TEXT_COLUMN].str.len() == 0).any():
+        raise ValueError("Dataset contains empty text values")
+    if df[CATEGORY_COLUMN].isna().any() or (df[CATEGORY_COLUMN].str.len() == 0).any():
+        raise ValueError("Dataset contains empty category values")
+    if df[CATEGORY_COLUMN].nunique() < 2:
+        raise ValueError("Category dataset must contain at least two categories")
 
 
 def summarize_labels(df: pd.DataFrame, column: str = LABEL_COLUMN) -> dict[str, int]:

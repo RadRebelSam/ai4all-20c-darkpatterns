@@ -1,13 +1,32 @@
 """Streamlit demo for dark-pattern recognition."""
 
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+# Ensure project root is on sys.path so `from src import ...` works when
+# Streamlit launches the app from a different working directory.
+import html
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 import streamlit as st
 
 from src.data import load_primary_binary_dataset
-from src.modeling import make_pipeline, split_dataset
-from src.predict import get_or_train_model, predict_text_for_demo
+from src.filters import infer_dark_pattern_type
+from src.modeling import make_pipeline, model_names
+from src.predict import (
+    get_or_train_category_model,
+    get_or_train_model,
+    predict_dark_pattern_category,
+    predict_text,
+    predict_text_for_demo,
+)
+from src.web_scanner import (
+    extract_visible_text_with_playwright,
+    score_snippets,
+    split_visible_text,
+)
 
 st.set_page_config(
     page_title="Dark Pattern Recognition",
@@ -15,130 +34,776 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("Dark Pattern Recognition")
-st.write(
-    "Enter e-commerce website text to check whether the model flags it as a dark pattern."
+st.markdown(
+    """
+    <style>
+    :root {
+        --ink: #172033;
+        --muted: #667085;
+        --line: #d9e2ec;
+        --paper: #ffffff;
+        --mist: #f5f7fb;
+        --teal: #11756f;
+        --teal-soft: #dff4ef;
+        --amber: #b7791f;
+        --amber-soft: #fff2d6;
+        --rose: #b42318;
+        --rose-soft: #ffe4e2;
+        --blue-soft: #e7f0ff;
+    }
+
+    .main .block-container {
+        max-width: 1080px;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    h1, h2, h3 {
+        letter-spacing: 0;
+    }
+
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        border-radius: 8px;
+    }
+
+    .hero {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: linear-gradient(135deg, #ffffff 0%, #edf7f5 55%, #fff6e8 100%);
+        padding: 1.35rem 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .hero h1 {
+        color: var(--ink);
+        font-size: 2.1rem;
+        line-height: 1.1;
+        margin: 0 0 0.35rem;
+    }
+
+    .hero p {
+        color: var(--muted);
+        font-size: 1.02rem;
+        margin: 0;
+        max-width: 760px;
+    }
+
+    .result-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        padding: 1rem;
+        margin: 0.75rem 0;
+    }
+
+    .result-card.danger {
+        border-color: #f3b5af;
+        background: var(--rose-soft);
+    }
+
+    .result-card.clear {
+        border-color: #a8ddd2;
+        background: var(--teal-soft);
+    }
+
+    .result-card.warning {
+        border-color: #f4c771;
+        background: var(--amber-soft);
+    }
+
+    .eyebrow {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        margin-bottom: 0.35rem;
+    }
+
+    .result-title {
+        color: var(--ink);
+        font-size: 1.55rem;
+        font-weight: 750;
+        line-height: 1.15;
+        margin: 0 0 0.4rem;
+    }
+
+    .result-copy {
+        color: var(--muted);
+        margin: 0;
+    }
+
+    .model-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+    }
+
+    .model-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        padding: 0.9rem;
+    }
+
+    .model-name {
+        color: var(--ink);
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+
+    .model-role {
+        color: var(--muted);
+        font-size: 0.82rem;
+        margin-bottom: 0.45rem;
+    }
+
+    .pill {
+        display: inline-block;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 0.18rem 0.55rem;
+        margin-bottom: 0.55rem;
+    }
+
+    .pill.dark {
+        color: var(--rose);
+        background: var(--rose-soft);
+    }
+
+    .pill.clear {
+        color: var(--teal);
+        background: var(--teal-soft);
+    }
+
+    .small-note {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin: 0.15rem 0 0;
+    }
+
+    .vote-row {
+        margin: 0.7rem 0;
+    }
+
+    .vote-label {
+        display: flex;
+        justify-content: space-between;
+        color: var(--ink);
+        font-weight: 700;
+        margin-bottom: 0.28rem;
+    }
+
+    .bar-track {
+        height: 0.9rem;
+        border-radius: 999px;
+        background: #e8edf3;
+        overflow: hidden;
+    }
+
+    .bar-fill {
+        height: 100%;
+        border-radius: 999px;
+    }
+
+    .bar-fill.dark {
+        background: #d92d20;
+    }
+
+    .bar-fill.clear {
+        background: #0f766e;
+    }
+
+    .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--paper);
+    }
+
+    .comparison-table th {
+        background: var(--mist);
+        color: var(--ink);
+        font-size: 0.85rem;
+        text-align: left;
+        padding: 0.7rem 0.8rem;
+    }
+
+    .comparison-table td {
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        padding: 0.7rem 0.8rem;
+    }
+
+    .model-row {
+        margin: 0.85rem 0;
+    }
+
+    .model-row-label {
+        align-items: baseline;
+        color: var(--ink);
+        display: flex;
+        font-weight: 700;
+        justify-content: space-between;
+        margin-bottom: 0.3rem;
+    }
+
+    .model-result {
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 600;
+    }
+
+    .model-bar-track {
+        background: #e8edf3;
+        border-radius: 999px;
+        height: 0.8rem;
+        overflow: hidden;
+    }
+
+    .model-bar-fill {
+        border-radius: 999px;
+        height: 100%;
+        min-width: 4%;
+    }
+
+    .model-bar-fill.suspicious {
+        background: #d92d20;
+    }
+
+    .model-bar-fill.okay {
+        background: #0f766e;
+    }
+
+    .model-bar-fill.none {
+        background: #98a2b3;
+    }
+
+    .scan-summary {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        padding: 1rem;
+        margin: 0.9rem 0;
+    }
+
+    .scan-summary-title {
+        color: var(--ink);
+        font-size: 1.1rem;
+        font-weight: 750;
+        margin-bottom: 0.25rem;
+    }
+
+    .scan-flag {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--paper);
+        padding: 0.95rem;
+        margin: 0.8rem 0;
+    }
+
+    .scan-snippet {
+        color: var(--ink);
+        font-size: 0.96rem;
+        line-height: 1.45;
+        margin: 0.55rem 0 0;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
 )
 
-# ── Prediction panel ──────────────────────────────────────────────────────────
+st.markdown(
+    """
+    <section class="hero">
+        <h1>Dark Pattern Recognition</h1>
+        <p>
+            Test e-commerce copy against multiple text classifiers and compare
+            whether they flag the snippet as potentially manipulative.
+        </p>
+    </section>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+@st.cache_resource(show_spinner="Training comparison models...")
+def get_comparison_models():
+    """Train all demo classifiers once per Streamlit session."""
+    df = load_primary_binary_dataset()
+    trained_models = {}
+    for name in model_names():
+        pipeline = make_pipeline(name)
+        pipeline.fit(df["text"], df["label"])
+        trained_models[name] = pipeline
+    return trained_models
+
+
+def format_confidence(confidence: float | None) -> str:
+    """Format optional model confidence for display."""
+    if confidence is None:
+        return "No score"
+    return f"{confidence:.1%}"
+
+
+def friendly_prediction(label_name: str) -> str:
+    """Convert model labels into plain-language output."""
+    if label_name == "Dark Pattern":
+        return "Looks suspicious"
+    return "Looks okay"
+
+
+def confidence_explanation(confidence: float | None) -> str:
+    """Explain confidence in plain language."""
+    if confidence is None:
+        return "No probability score"
+    if confidence >= 0.85:
+        return "Strong signal"
+    if confidence >= 0.65:
+        return "Moderate signal"
+    return "Weak signal"
+
+
+def confidence_detail(confidence: float | None) -> str:
+    """Explain exactly what the signal value means."""
+    if confidence is None:
+        return "This model does not report a percent probability."
+    return f"{confidence:.1%} probability for this answer"
+
+
+@st.cache_resource(show_spinner="Loading category model...")
+def get_category_model():
+    """Load or train the second-stage dark-pattern category model."""
+    return get_or_train_category_model()
+
+
+def possible_type_for_text(text: str) -> str:
+    """Return category-model prediction with rule-based fallback."""
+    try:
+        category, confidence = predict_dark_pattern_category(text, get_category_model())
+    except Exception:
+        return infer_dark_pattern_type(text)
+
+    if confidence is None:
+        return category
+    return f"{category} ({confidence:.1%})"
+
+
+def model_result_rows(text: str, *, apply_filters: bool) -> list[dict[str, object]]:
+    """Run the entered text through every configured model."""
+    rows = []
+    for name, pipeline in get_comparison_models().items():
+        if apply_filters:
+            prediction = predict_text_for_demo(text, pipeline)
+            filter_note = (
+                "Adjusted for simple product/price text"
+                if prediction.suppressed_by_filter
+                else "No adjustment"
+            )
+        else:
+            prediction = predict_text(text, pipeline)
+            filter_note = "Filters off"
+        rows.append(
+            {
+                "model": name,
+                "prediction": prediction.label_name,
+                "friendly_prediction": friendly_prediction(prediction.label_name),
+                "confidence": prediction.confidence,
+                "confidence_label": format_confidence(prediction.confidence),
+                "confidence_text": confidence_explanation(prediction.confidence),
+                "confidence_detail": confidence_detail(prediction.confidence),
+                "pattern_type": possible_type_for_text(text)
+                if prediction.label == 1
+                else "Not flagged",
+                "filter": filter_note,
+            }
+        )
+    return rows
+
+
+def render_main_result(prediction) -> None:
+    """Render the main prediction in plain language."""
+    if prediction.suppressed_by_filter:
+        title = "Probably okay"
+        body = (
+            "The first pass looked suspicious, but this appears to be simple "
+            "price or product text without pressure language."
+        )
+        st.warning(f"**Main answer: {title}**\n\n{body}")
+    elif prediction.label == 1:
+        title = "Looks suspicious"
+        body = (
+            "This text may be using pressure, urgency, scarcity, or social proof "
+            "to influence a shopper."
+        )
+        st.error(f"**Main answer: {title}**\n\n{body}")
+    else:
+        title = "Looks okay"
+        body = (
+            "This text was not flagged by the main checker. A full website review "
+            "could still reveal issues outside the text."
+        )
+        st.success(f"**Main answer: {title}**\n\n{body}")
+
+    confidence = format_confidence(prediction.confidence)
+    confidence_text = confidence_explanation(prediction.confidence)
+    confidence_detail_text = confidence_detail(prediction.confidence)
+    if prediction.confidence is None:
+        st.caption(f"Signal strength: {confidence_text}. {confidence_detail_text}")
+    else:
+        st.caption(
+            f"Signal strength: {confidence_text}. "
+            f"{confidence_detail_text} ({confidence})."
+        )
+    if prediction.label == 1:
+        st.caption(f"Possible type: {possible_type_for_text(prediction.text)}")
+
+
+def render_checker_details(rows: list[dict[str, object]]) -> None:
+    """Render model results as an easy-to-scan comparison chart."""
+    st.caption("Each bar shows how confident that model was in its own answer.")
+    for row in rows:
+        confidence = row["confidence"]
+        width = 8 if confidence is None else max(4, round(float(confidence) * 100))
+        bar_class = "none"
+        if row["prediction"] == "Dark Pattern":
+            bar_class = "suspicious"
+        elif row["prediction"] == "Not Dark Pattern":
+            bar_class = "okay"
+        st.markdown(
+            f"""
+            <div class="model-row">
+                <div class="model-row-label">
+                    <span>{row["model"]}</span>
+                    <span class="model-result">{row["friendly_prediction"]}</span>
+                </div>
+                <div class="model-bar-track">
+                    <div class="model-bar-fill {bar_class}" style="width: {width}%"></div>
+                </div>
+                <div class="small-note">{row["confidence_text"]} - {row["confidence_detail"]}</div>
+                <div class="small-note">Possible type: {row["pattern_type"]}</div>
+                <div class="small-note">{row["filter"]}</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+def scan_url(
+    url: str,
+    *,
+    threshold: float,
+    limit: int,
+    wait_ms: int,
+    apply_filters: bool,
+    hide_context_light: bool,
+) -> tuple[list[str], list]:
+    """Scan a webpage and return all reviewed snippets plus displayed results."""
+    model = get_or_train_model()
+    page_text = extract_visible_text_with_playwright(url, wait_ms=wait_ms)
+    snippets = split_visible_text(page_text)
+    results = score_snippets(
+        snippets,
+        model,
+        dark_only=True,
+        min_confidence=threshold,
+        suppress_simple_discounts=apply_filters,
+        suppress_product_titles=apply_filters,
+        suppress_context_light=apply_filters and hide_context_light,
+    )
+    return snippets, results[:limit]
+
+
+def scan_url_with_progress(
+    url: str,
+    *,
+    threshold: float,
+    limit: int,
+    wait_ms: int,
+    apply_filters: bool,
+    hide_context_light: bool,
+    progress,
+    status,
+) -> tuple[list[str], list]:
+    """Scan a webpage while updating Streamlit progress UI."""
+    status.write("Loading the trained model...")
+    progress.progress(10)
+    model = get_or_train_model()
+
+    status.write("Opening the page with Playwright...")
+    progress.progress(30)
+    page_text = extract_visible_text_with_playwright(url, wait_ms=wait_ms)
+
+    status.write("Splitting visible text into short snippets...")
+    progress.progress(60)
+    snippets = split_visible_text(page_text)
+
+    status.write("Scoring snippets with the model and applying filters...")
+    progress.progress(80)
+    results = score_snippets(
+        snippets,
+        model,
+        dark_only=True,
+        min_confidence=threshold,
+        suppress_simple_discounts=apply_filters,
+        suppress_product_titles=apply_filters,
+        suppress_context_light=apply_filters and hide_context_light,
+    )
+
+    status.write("Done.")
+    progress.progress(100)
+    return snippets, results[:limit]
+
+
+def render_scan_results(url: str, snippets: list[str], results: list) -> None:
+    """Render webpage scan results in the app."""
+    safe_url = html.escape(url)
+    st.markdown(
+        f"""
+        <section class="scan-summary">
+            <div class="eyebrow">Webpage scan</div>
+            <div class="scan-summary-title">{safe_url}</div>
+            <p class="result-copy">
+                The scanner reviewed visible page text and flagged snippets that
+                looked suspicious above your probability threshold.
+            </p>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+    metric_cols = st.columns(3)
+    metric_cols[0].metric("Snippets reviewed", len(snippets))
+    metric_cols[1].metric("Snippets shown", len(results))
+    metric_cols[2].metric("Review needed", "Yes" if results else "No")
+
+    if not results:
+        st.success(
+            "No high-confidence suspicious snippets were found with these settings."
+        )
+        return
+
+    st.warning(
+        "These are text-only flags. They are leads for review, not final proof of a dark pattern."
+    )
+    st.subheader("Flagged snippets")
+    for index, result in enumerate(results, start=1):
+        confidence = result.prediction.confidence
+        confidence_text = "No probability score" if confidence is None else f"{confidence:.1%}"
+        confidence_label = confidence_explanation(confidence)
+        confidence_detail_text = confidence_detail(confidence)
+        pattern_type = html.escape(possible_type_for_text(result.snippet))
+        width = 8 if confidence is None else max(4, round(float(confidence) * 100))
+        safe_snippet = html.escape(result.snippet)
+        st.markdown(
+            f"""
+            <section class="scan-flag">
+                <div class="model-row-label">
+                    <span>Flag {index}: Looks suspicious</span>
+                    <span class="model-result">{confidence_text}</span>
+                </div>
+                <div class="model-bar-track">
+                    <div class="model-bar-fill suspicious" style="width: {width}%"></div>
+                </div>
+                <div class="small-note">{confidence_label} - {confidence_detail_text}</div>
+                <div class="small-note">Possible type: {pattern_type}</div>
+                <p class="scan-snippet">{safe_snippet}</p>
+            </section>
+            """,
+            unsafe_allow_html=True,
+        )
+
 
 examples = {
     "Urgency example": "Hurry! Sale ends in 10 minutes. Buy now before prices go up.",
     "Scarcity example": "Only 2 left in stock. Add to cart before this item sells out.",
     "Social proof example": "1,243 people are looking at this item right now.",
-    "Plain discount example": "Previous price: $99.00 47% off",
-    "Catalog title example": "2025 Tablet 10 inch Android 14 Tablet 8+64GB 1280x800 IPS Touchscreen 5000mAh US",
+    "Filter example": "Previous price: $99.00 47% off",
+    "Catalog title example": (
+        "2025 Tablet 10 inch Android 14 Tablet 8+64GB 1280x800 IPS "
+        "Touchscreen 5000mAh US"
+    ),
     "Neutral example": "This cotton pillowcase is machine washable and available in two sizes.",
 }
+webpage_examples = [
+    "https://www.ulta.com/promotion/sale",
+    "https://toonbee.ai/",
+    "https://www.cnn.com/",
+]
 
-selected_example = st.selectbox("Example text", ["Custom"] + list(examples))
-default_text = "" if selected_example == "Custom" else examples[selected_example]
-text = st.text_area("Website text", value=default_text, height=150)
+text_tab, scanner_tab = st.tabs(["Analyze text", "Scan webpage"])
 
-if st.button("Analyze text", type="primary"):
-    if not text.strip():
-        st.warning("Enter some website text first.")
-    else:
-        model = get_or_train_model()
-        prediction = predict_text_for_demo(text, model)
-        st.metric("Prediction", prediction.label_name)
-        if prediction.confidence is not None:
-            st.progress(prediction.confidence)
-            st.caption(f"Model confidence: {prediction.confidence:.1%}")
+with text_tab:
+    input_col, option_col = st.columns([2.2, 1], gap="large")
 
-        if prediction.suppressed_by_filter:
-            st.warning(
-                "The raw model considered this snippet suspicious, but the demo filter "
-                "suppressed it because it looks like low-context sale or product-catalog "
-                "text without extra urgency or scarcity pressure language."
-            )
-            st.caption(prediction.filter_reason)
-        elif prediction.label == 1:
-            st.info(
-                "The model flagged this text as potentially manipulative. "
-                "A human review is still needed before making a final judgment."
-            )
+    with input_col:
+        if "website_text" not in st.session_state:
+            st.session_state["website_text"] = ""
+
+        if "selected_example_text" in st.session_state:
+            st.session_state["website_text"] = st.session_state.pop("selected_example_text")
+
+        st.write("**Text**")
+        text = st.text_area(
+            "Text",
+            key="website_text",
+            height=170,
+            label_visibility="collapsed",
+            placeholder=(
+                "Paste e-commerce text here, such as a product banner, "
+                "checkout message, or sale notice."
+            ),
+        )
+
+        st.caption("Examples to try")
+        example_columns = st.columns(3)
+        for index, (label, example_text) in enumerate(examples.items()):
+            with example_columns[index % 3]:
+                if st.button(label, use_container_width=True):
+                    st.session_state["selected_example_text"] = example_text
+                    st.rerun()
+
+    with option_col:
+        st.subheader("Run check")
+        st.write("The app will show the main answer and each model's result.")
+        apply_text_filters = st.checkbox(
+            "Apply demo filters",
+            value=True,
+            key="apply_text_filters",
+        )
+        st.caption(
+            "Filters hide obvious false positives like plain discounts or product specs. "
+            "Turn off to see raw model output."
+        )
+        analyze = st.button("Analyze text", type="primary", use_container_width=True)
+
+    if analyze:
+        if not text.strip():
+            st.warning("Enter some text first.")
         else:
-            st.success(
-                "The model did not flag this text as a dark pattern. "
-                "This does not guarantee the full website is free of deceptive design."
+            model = get_or_train_model()
+            st.session_state["last_text"] = text
+            st.session_state["last_prediction"] = (
+                predict_text_for_demo(text, model)
+                if apply_text_filters
+                else predict_text(text, model)
+            )
+            st.session_state["last_rows"] = model_result_rows(
+                text,
+                apply_filters=apply_text_filters,
             )
 
-st.divider()
+    if "last_prediction" in st.session_state and "last_rows" in st.session_state:
+        prediction = st.session_state["last_prediction"]
+        rows = st.session_state["last_rows"]
 
-# ── Inline charts ─────────────────────────────────────────────────────────────
+        render_main_result(prediction)
+        st.subheader("Model comparison")
+        render_checker_details(rows)
 
-st.subheader("Model Performance")
+with scanner_tab:
+    scan_col, settings_col = st.columns([2.2, 1], gap="large")
 
-tab1, tab2, tab3 = st.tabs(
-    ["Model Comparison", "Category Distribution", "Top Features"]
-)
+    with scan_col:
+        if "webpage_url" not in st.session_state:
+            st.session_state["webpage_url"] = ""
 
-with tab1:
-    metrics_path = "reports/model_metrics.csv"
-    try:
-        metrics = pd.read_csv(metrics_path)
-        metric_cols = ["accuracy", "precision", "recall", "f1"]
-        fig, ax = plt.subplots(figsize=(9, 5))
-        bar_height = 0.18
-        y = np.arange(len(metrics))
-        colors = plt.cm.Set2(np.linspace(0, 0.6, 4))
-        for i, (col, color) in enumerate(zip(metric_cols, colors)):
-            ax.barh(y + i * bar_height, metrics[col], height=bar_height,
-                    label=col.capitalize(), color=color)
-        ax.set_yticks(y + bar_height * 1.5)
-        ax.set_yticklabels(metrics["model"])
-        ax.set_xlim(0.80, 1.02)
-        ax.set_xlabel("Score")
-        ax.set_title("Model Performance Comparison")
-        ax.legend(loc="lower right")
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close(fig)
-    except FileNotFoundError:
-        st.info("Run `python scripts/train_models.py` to generate metrics.")
+        if "selected_example_url" in st.session_state:
+            st.session_state["webpage_url"] = st.session_state.pop("selected_example_url")
 
-with tab2:
-    try:
-        df = load_primary_binary_dataset()
-        counts = df["category"].value_counts().sort_values()
-        fig, ax = plt.subplots(figsize=(9, 5))
-        ax.barh(counts.index, counts.values, color=plt.cm.Set2(0.1))
-        for i, v in enumerate(counts.values):
-            ax.text(v + 3, i, str(v), va="center", fontsize=9)
-        ax.set_xlabel("Number of Examples")
-        ax.set_title("Dark Pattern Category Distribution")
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close(fig)
-    except Exception as e:
-        st.info(f"Could not load dataset: {e}")
+        st.write("**Webpage URL**")
+        url = st.text_input(
+            "Webpage URL",
+            key="webpage_url",
+            label_visibility="collapsed",
+        )
+        st.caption(
+            "This scans visible page text only. It cannot judge layout, button styling, "
+            "checkout friction, images, or the full user flow."
+        )
+        st.caption("Examples to try")
+        url_example_columns = st.columns(3)
+        for index, example_url in enumerate(webpage_examples):
+            with url_example_columns[index % 3]:
+                if st.button(example_url, use_container_width=True):
+                    st.session_state["selected_example_url"] = example_url
+                    st.rerun()
 
-with tab3:
-    try:
-        df = load_primary_binary_dataset()
-        pipeline = make_pipeline("Logistic Regression")
-        pipeline.fit(df["text"], df["label"])
-        tfidf = pipeline.named_steps["tfidf"]
-        clf = pipeline.named_steps["classifier"]
-        feature_names = np.array(tfidf.get_feature_names_out())
-        coefs = clf.coef_[0]
-        top_pos = np.argsort(coefs)[-12:]
-        top_neg = np.argsort(coefs)[:12]
-        idx = np.concatenate([top_neg, top_pos])
-        fig, ax = plt.subplots(figsize=(9, 7))
-        colors = [plt.cm.Set2(0.5) if c < 0 else plt.cm.Set2(0.15) for c in coefs[idx]]
-        ax.barh(range(len(idx)), coefs[idx], color=colors)
-        ax.set_yticks(range(len(idx)))
-        ax.set_yticklabels(feature_names[idx], fontsize=9)
-        ax.axvline(0, color="grey", linewidth=0.8)
-        ax.set_xlabel("Logistic Regression Coefficient")
-        ax.set_title("Top TF-IDF Features for Dark Pattern Detection")
-        plt.tight_layout()
-        st.pyplot(fig)
-        plt.close(fig)
-    except Exception as e:
-        st.info(f"Could not generate feature chart: {e}")
+    with settings_col:
+        st.subheader("Scan settings")
+        threshold = st.slider("Minimum probability", 0.50, 0.95, 0.80, 0.05)
+        st.caption(
+            "Only show snippets when the model is at least this confident. "
+            "Higher means fewer, stronger flags."
+        )
+        limit = st.slider("Maximum flags shown", 3, 20, 8, 1)
+        st.caption(
+            "Caps how many suspicious snippets appear in the results so the page stays readable."
+        )
+        wait_ms = st.slider("Page wait time", 1000, 8000, 3000, 500)
+        st.caption(
+            "How long Playwright waits after opening the page. Longer can catch popups "
+            "or delayed content, but scanning takes more time."
+        )
+        apply_scan_filters = st.checkbox(
+            "Apply demo filters",
+            value=True,
+            key="apply_scan_filters",
+        )
+        st.caption(
+            "Filters hide plain discounts, product/spec text, and vague fragments. "
+            "Turn off to inspect raw scanner output."
+        )
+        hide_context_light = True
+        if apply_scan_filters:
+            hide_context_light = st.checkbox(
+                "Hide vague short snippets",
+                value=True,
+                key="hide_context_light",
+            )
+            st.caption(
+                "Hides weak fragments like testimonials, bare counters, or tiny headings "
+                "unless they include real urgency or scarcity language."
+            )
+        scan = st.button("Scan webpage", type="primary", use_container_width=True)
+
+    if scan:
+        if not url.strip():
+            st.warning("Enter a webpage URL first.")
+        else:
+            try:
+                st.info("Scanning can take a few seconds while Playwright opens the page.")
+                progress = st.progress(0)
+                status = st.empty()
+                snippets, results = scan_url_with_progress(
+                    url.strip(),
+                    threshold=threshold,
+                    limit=limit,
+                    wait_ms=wait_ms,
+                    apply_filters=apply_scan_filters,
+                    hide_context_light=hide_context_light,
+                    progress=progress,
+                    status=status,
+                )
+                st.session_state["last_scan_url"] = url.strip()
+                st.session_state["last_scan_snippets"] = snippets
+                st.session_state["last_scan_results"] = results
+            except RuntimeError as exc:
+                st.error(str(exc))
+
+    if (
+        "last_scan_url" in st.session_state
+        and "last_scan_snippets" in st.session_state
+        and "last_scan_results" in st.session_state
+    ):
+        render_scan_results(
+            st.session_state["last_scan_url"],
+            st.session_state["last_scan_snippets"],
+            st.session_state["last_scan_results"],
+        )
 
 st.divider()
 st.caption(

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from sklearn.pipeline import Pipeline
 
-from src.data import load_primary_binary_dataset
+from src.data import load_dark_pattern_category_dataset, load_primary_binary_dataset
 from src.filters import (
     is_low_context_product_snippet,
     is_simple_price_or_discount_snippet,
@@ -15,6 +15,7 @@ from src.filters import (
 from src.modeling import load_model, make_pipeline, save_model
 
 DEFAULT_MODEL_PATH = Path("artifacts/best_binary_model.joblib")
+DEFAULT_CATEGORY_MODEL_PATH = Path("artifacts/best_category_model.joblib")
 
 
 @dataclass(frozen=True)
@@ -45,6 +46,41 @@ def get_or_train_model(model_path: Path = DEFAULT_MODEL_PATH) -> Pipeline:
     pipeline = train_default_model()
     save_model(pipeline, model_path)
     return pipeline
+
+
+def train_default_category_model() -> Pipeline:
+    """Train the default dark-pattern category model on dark-pattern rows."""
+    df = load_dark_pattern_category_dataset()
+    pipeline = make_pipeline("Logistic Regression")
+    pipeline.fit(df["text"], df["category"])
+    return pipeline
+
+
+def get_or_train_category_model(
+    model_path: Path = DEFAULT_CATEGORY_MODEL_PATH,
+) -> Pipeline:
+    """Load the saved category model or train and save one when missing."""
+    if model_path.exists():
+        return load_model(model_path)
+
+    pipeline = train_default_category_model()
+    save_model(pipeline, model_path)
+    return pipeline
+
+
+def predict_dark_pattern_category(text: str, pipeline: Pipeline) -> tuple[str, float | None]:
+    """Predict the likely category for text already considered suspicious."""
+    normalized = " ".join(text.strip().split())
+    if not normalized:
+        raise ValueError("Prediction text cannot be empty")
+
+    category = str(pipeline.predict([normalized])[0])
+    confidence = None
+    if hasattr(pipeline[-1], "predict_proba"):
+        classes = list(pipeline[-1].classes_)
+        class_index = classes.index(category)
+        confidence = float(pipeline.predict_proba([normalized])[0][class_index])
+    return category, confidence
 
 
 def predict_text(text: str, pipeline: Pipeline) -> Prediction:

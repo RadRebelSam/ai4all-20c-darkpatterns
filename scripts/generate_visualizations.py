@@ -27,13 +27,20 @@ from src.modeling import make_pipeline, split_dataset
 # ---------------------------------------------------------------------------
 
 plt.style.use("seaborn-v0_8-whitegrid")
-FIGURE_DIR = Path("reports") / "figures"
-FIGURE_DIR.mkdir(parents=True, exist_ok=True)
+FIGURE_DIRS = [Path("reports") / "figures", Path("docs") / "figures"]
+for figure_dir in FIGURE_DIRS:
+    figure_dir.mkdir(parents=True, exist_ok=True)
 
 SAVE_KW = dict(dpi=150, bbox_inches="tight")
 
 # Colour palette
 PALETTE = sns.color_palette("Set2", 8)
+
+
+def save_figure(fig, filename: str) -> None:
+    """Save one figure to report and GitHub Pages figure directories."""
+    for figure_dir in FIGURE_DIRS:
+        fig.savefig(figure_dir / filename, **SAVE_KW)
 
 
 # ---------------------------------------------------------------------------
@@ -76,9 +83,56 @@ def plot_model_comparison() -> None:
     ax.legend(loc="lower right", frameon=True)
 
     plt.tight_layout()
-    fig.savefig(FIGURE_DIR / "model_comparison.png", **SAVE_KW)
+    save_figure(fig, "model_comparison.png")
     plt.close(fig)
     print("  Saved model_comparison.png")
+
+
+def plot_category_model_comparison() -> None:
+    """Plot the second-stage category model comparison."""
+    metrics_path = Path("reports") / "category_model_metrics.csv"
+    if not metrics_path.exists():
+        print("  Skipped category_model_comparison.png (missing category metrics)")
+        return
+
+    metrics = pd.read_csv(metrics_path)
+    metric_cols = ["accuracy", "precision_macro", "recall_macro", "f1_macro"]
+    labels = ["Accuracy", "Macro Precision", "Macro Recall", "Macro F1"]
+    colours = [PALETTE[i] for i in range(len(metric_cols))]
+
+    models = metrics["model"].tolist()
+    bar_height = 0.18
+    y_positions = np.arange(len(models))
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    for i, (col, label, colour) in enumerate(zip(metric_cols, labels, colours)):
+        offsets = y_positions + i * bar_height
+        values = metrics[col].tolist()
+        bars = ax.barh(offsets, values, height=bar_height, label=label, color=colour)
+        for bar, val in zip(bars, values):
+            ax.text(
+                val + 0.003,
+                bar.get_y() + bar.get_height() / 2,
+                f"{val:.3f}",
+                va="center",
+                fontsize=8,
+            )
+
+    ax.set_yticks(y_positions + bar_height * 1.5)
+    ax.set_yticklabels(models)
+    ax.set_xlim(0.55, 1.02)
+    ax.set_xlabel("Score")
+    ax.set_title(
+        "Second-Stage Category Model Comparison",
+        fontsize=14,
+        fontweight="bold",
+    )
+    ax.legend(loc="lower right", frameon=True)
+
+    plt.tight_layout()
+    save_figure(fig, "category_model_comparison.png")
+    plt.close(fig)
+    print("  Saved category_model_comparison.png")
 
 
 # ---------------------------------------------------------------------------
@@ -110,10 +164,10 @@ def plot_confusion_matrix() -> None:
     )
     ax.set_xlabel("Predicted", fontsize=12)
     ax.set_ylabel("Actual", fontsize=12)
-    ax.set_title("Confusion Matrix — Logistic Regression", fontsize=14, fontweight="bold")
+    ax.set_title("Confusion Matrix - Logistic Regression", fontsize=14, fontweight="bold")
 
     plt.tight_layout()
-    fig.savefig(FIGURE_DIR / "confusion_matrix.png", **SAVE_KW)
+    save_figure(fig, "confusion_matrix.png")
     plt.close(fig)
     print("  Saved confusion_matrix.png")
 
@@ -150,7 +204,7 @@ def plot_category_distribution() -> None:
     ax.set_title("Dark Pattern Category Distribution", fontsize=14, fontweight="bold")
 
     plt.tight_layout()
-    fig.savefig(FIGURE_DIR / "category_distribution.png", **SAVE_KW)
+    save_figure(fig, "category_distribution.png")
     plt.close(fig)
     print("  Saved category_distribution.png")
 
@@ -202,7 +256,7 @@ def plot_top_features() -> None:
     ax.legend(handles=legend_elements, loc="lower right", frameon=True)
 
     plt.tight_layout()
-    fig.savefig(FIGURE_DIR / "top_features.png", **SAVE_KW)
+    save_figure(fig, "top_features.png")
     plt.close(fig)
     print("  Saved top_features.png")
 
@@ -215,10 +269,11 @@ def plot_top_features() -> None:
 def main() -> None:
     print("Generating visualizations...")
     plot_model_comparison()
+    plot_category_model_comparison()
     plot_confusion_matrix()
     plot_category_distribution()
     plot_top_features()
-    print("Done — all figures saved to reports/figures/")
+    print("Done - all figures saved to reports/figures/ and docs/figures/")
 
 
 if __name__ == "__main__":

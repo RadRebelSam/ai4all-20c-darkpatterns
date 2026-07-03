@@ -3,7 +3,9 @@ import pandas as pd
 from src.data import load_primary_binary_dataset
 from src.filters import (
     contains_pressure_language,
+    infer_dark_pattern_type,
     is_low_context_product_snippet,
+    is_low_context_web_snippet,
     is_simple_price_or_discount_snippet,
 )
 from src.modeling import make_pipeline
@@ -93,4 +95,33 @@ def test_low_context_product_filter_keeps_pressure_language():
 
     assert not is_low_context_product_snippet(
         "Only 2 left in stock for this tablet. Sale ends tonight."
+    )
+
+
+def test_low_context_web_filter_suppresses_weak_page_fragments():
+    assert is_low_context_web_snippet("Why I bought this!")
+    assert is_low_context_web_snippet("Thanks Charan!")
+    assert is_low_context_web_snippet("Deals bought: 284")
+    assert is_low_context_web_snippet(
+        "2) Copy 100 Viral posts of successful people (structure)"
+    )
+    assert is_low_context_web_snippet(
+        "Thanks Daniel for the 45 minute walk through call yesterday."
+    )
+
+    assert not is_low_context_web_snippet(
+        "Only 2 left in stock. Buy now before the deal ends."
+    )
+
+
+def test_infer_dark_pattern_type_from_text_cues():
+    assert infer_dark_pattern_type("Hurry, sale ends tonight") == "Urgency"
+    assert infer_dark_pattern_type("Only 2 left in stock") == "Scarcity"
+    assert infer_dark_pattern_type("1,243 people are looking at this item") == "Social proof"
+    assert (
+        infer_dark_pattern_type("Only 2 left. Sale ends tonight")
+        == "Urgency + Scarcity"
+    )
+    assert infer_dark_pattern_type("This cotton pillowcase is machine washable") == (
+        "Unclear from text alone"
     )

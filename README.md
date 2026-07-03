@@ -30,6 +30,7 @@ This section documents the main project decisions and why we made them.
 | Confidence threshold | The Playwright scanner shows dark-pattern results above a default 65% confidence threshold. | This hides weaker predictions during the demo and keeps attention on higher-confidence examples. Confidence is model certainty, not a guarantee that the prediction is correct. |
 | Discount false-positive filter | Suppressed plain price/discount snippets unless they include pressure language. | Real sale pages often include harmless text like `Previous price: $99.00 47% off`. The filter reduces obvious false positives while still allowing pressure phrases like `Hurry, 47% off ends soon`. |
 | Product-title false-positive filter | Suppressed catalog-style product titles/spec snippets unless they include pressure language. | Live tests showed false positives on product titles with model numbers, storage sizes, camera specs, or labels like `US Stock`. These are usually catalog metadata, not manipulative language. |
+| Second-stage category model | Trained a separate category classifier after the main binary detector. | The main model answers whether text looks suspicious. The category model adds a likely type such as `Urgency`, `Scarcity`, or `Social Proof`, but it is limited by category imbalance and should be presented as supporting detail. |
 | Sentiment/context decision | Documented sentiment and UI context as future work instead of adding them now. | Sentiment can help with shame/fear/guilt language, but dark patterns depend heavily on button roles, popup placement, timing, and user flow. Adding this now would require new labeled data and a more complex pipeline. |
 | Production limitation | Documented OCR, screenshot, color/layout, DOM/CSS, and UX-flow detection as future production layers. | Even with Playwright, this project is text-first. A real production detector would need additional evidence for image text, visual hierarchy, hidden links, checkout friction, cancellation difficulty, and other non-text patterns. |
 
@@ -68,6 +69,7 @@ Publication-quality figures are in [`reports/figures/`](reports/figures/) and em
 | Figure | Description |
 | --- | --- |
 | `model_comparison.png` | Grouped horizontal bar chart comparing all 5 models across 4 metrics |
+| `category_model_comparison.png` | Grouped horizontal bar chart comparing the second-stage category classifiers |
 | `confusion_matrix.png` | Heatmap for Logistic Regression on the 20% test set |
 | `category_distribution.png` | Dark-pattern category counts showing class imbalance within categories |
 | `top_features.png` | Top 15 TF-IDF coefficients showing which words drive dark-pattern predictions |
@@ -84,6 +86,24 @@ Train models and save metrics:
 
 ```bash
 python scripts/train_models.py
+```
+
+This trains two models:
+
+- `artifacts/best_binary_model.joblib`: the main dark-pattern vs not-dark-pattern detector.
+- `artifacts/best_category_model.joblib`: a second-stage category classifier for text that already looks suspicious.
+
+It also writes:
+
+- `reports/model_metrics.csv`: binary model comparison metrics.
+- `reports/category_model_metrics.csv`: category model comparison metrics.
+
+The category model is trained only on dark-pattern examples with category labels. Its output should be described as a likely or possible type, not a definitive category, because some categories have much less training data than others.
+
+To train only the binary model:
+
+```bash
+python scripts/train_models.py --skip-category-model
 ```
 
 Train the expanded dataset experiment that also incorporates Devitachi and Akash Nath sources:
@@ -106,6 +126,10 @@ Run tests:
 python -m pytest
 ```
 
+Run the full Google Colab workflow:
+
+Open [`notebooks/dark_pattern_colab_full.ipynb`](notebooks/dark_pattern_colab_full.ipynb) in Colab. The notebook includes the complete code for loading datasets, training the binary model, training the second-stage category model, saving artifacts, generating figures, analyzing example text, and scanning example webpages.
+
 Run the Streamlit demo:
 
 ```bash
@@ -125,8 +149,30 @@ By default, the Streamlit app and Playwright scanner also apply two lightweight 
 
 - They suppress simple price/discount snippets such as `sale price $10.00` or `Previous price: $99.00 47% off` unless the snippet includes pressure language like `hurry`, `limited time`, `ends soon`, or `only 2 left`.
 - They suppress catalog-style product title/spec snippets such as model numbers, storage sizes, camera/lens specs, and labels like `US Stock` unless the snippet includes pressure language.
+- They suppress low-context webpage fragments such as `Thanks Charan!`, `Why I bought this!`, `Deals bought: 284`, or short course/module titles unless the snippet includes pressure language.
 
 These post-processing filters reduce obvious false positives in the live demo. A longer-term model improvement would be to add more normal sale/discount and product-catalog examples labeled as `Not Dark Pattern` and retrain.
+
+## Demo Filters
+
+All rule-based demo filters live in [`src/filters.py`](src/filters.py). The webpage scanner applies them in [`src/web_scanner.py`](src/web_scanner.py), and the terminal interface exposes filter switches in [`scripts/scan_page.py`](scripts/scan_page.py).
+
+These filters do not retrain or change the machine learning model. They are post-processing safeguards that hide common false positives after the model predicts a snippet as suspicious.
+
+| Filter | Function | Suppresses | Keeps |
+| --- | --- | --- | --- |
+| Pressure-language detector | `contains_pressure_language` | Nothing by itself; this is used by the other filters. | Words and phrases such as `hurry`, `last chance`, `limited time`, `ends soon`, `only 2 left`, `low stock`, and `act now`. |
+| Simple price/discount filter | `is_simple_price_or_discount_snippet` | Plain sale or price labels such as `sale price $10.00`, `Previous price: $99.00 47% off`, `was $50`, or `now $25`. | Discount text that also includes pressure language, such as `Hurry, 47% off ends soon`. |
+| Product title/spec filter | `is_low_context_product_snippet` | Catalog metadata such as model numbers, storage sizes, camera/lens specs, `US Stock`, `open box`, `near mint`, or `refurbished` when there is no pressure language. | Product snippets that include urgency or scarcity, such as `Only 2 left in stock for this tablet`. |
+| Low-context webpage fragment filter | `is_low_context_web_snippet` | Snippets too thin to judge alone, such as `Thanks Charan!`, `Why I bought this!`, `Deals bought: 284`, short testimonials, bare counters, or short course/module titles. | Any of those snippets if they also include real pressure language like `only 2 left`, `deal ends`, or `act now`. |
+
+In Streamlit, the `Scan webpage` tab has a `Hide vague short snippets` checkbox. That controls the low-context webpage fragment filter.
+
+To show raw scanner output from the terminal without these safeguards:
+
+```bash
+python scripts/scan_page.py https://example.com --no-price-filter --no-product-filter --no-context-filter
+```
 
 Sentiment and context are important future considerations. Sentiment could help identify emotionally manipulative language such as guilt or fear, but it would not be enough by itself because dark patterns often depend on where the text appears, what button it is attached to, and what action the user is being pushed toward. For this version, we keep the model focused on text classification and treat richer UI context, screenshot features, DOM structure, and sentiment features as future work rather than adding extra training complexity now.
 
@@ -135,7 +181,7 @@ For a real production detector, Playwright text extraction would only be one lay
 To show the raw model behavior without this filter:
 
 ```bash
-python scripts/scan_page.py https://www.ebay.com/deals --no-price-filter --no-product-filter
+python scripts/scan_page.py https://www.ebay.com/deals --no-price-filter --no-product-filter --no-context-filter
 ```
 
 ## Responsible AI
@@ -164,6 +210,32 @@ Key limitations:
 - Add flow-based evaluation for checkout, subscription, cancellation, and unsubscribe journeys
 - Evaluate on real-world web-scraped data rather than curated datasets
 - Partner with consumer advocacy groups to validate findings in deployment
+
+## Troubleshooting
+
+- **Windows permission error during `pip install`**
+
+	This happens when `pip` tries to modify files in a system-wide Python installation without sufficient permissions. Recommended fixes:
+	
+	- Install into a virtual environment (recommended):
+	
+	```powershell
+		python -m venv .venv
+	.\.venv\Scripts\Activate.ps1
+		pip install -r requirements.txt
+	```
+	
+	- Install for the current user only:
+	
+		```powershell
+		pip install --user -r requirements.txt
+	```
+	
+- Run the terminal as Administrator (not recommended for everyday use) or adjust folder permissions if appropriate.
+	
+	- Check antivirus or file-locking processes that may block `f2py.exe` or other scripts from being modified.
+	
+These steps should resolve the permission error when installing dependencies on Windows.
 
 ## Citations
 

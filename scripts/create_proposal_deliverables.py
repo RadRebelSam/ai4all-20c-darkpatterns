@@ -91,6 +91,13 @@ def create_docx() -> Path:
         "Regression, Naive Bayes, Linear SVM, Decision Trees, and Random Forests."
     )
     document.add_paragraph(
+        "On top of the main binary detector, we now train a second-stage category model. "
+        "The binary model first predicts whether text looks suspicious. If it does, the "
+        "category model estimates the likely type, such as Urgency, Scarcity, Social Proof, "
+        "or Misdirection. We present this as a likely category because the category labels "
+        "are less balanced than the binary labels."
+    )
+    document.add_paragraph(
         "In addition to the balanced primary dataset, we also created an expanded training "
         "experiment that incorporates Devitachi and Akash Nath data. Devitachi overlaps with "
         "the primary dataset by text, so we preserve it as source provenance rather than "
@@ -113,6 +120,7 @@ def create_docx() -> Path:
             "TF-IDF text feature extraction to convert website text into numerical features.",
             "Logistic Regression as the current primary model because it has the best F1 score and interpretable feature weights.",
             "Naive Bayes, Linear SVM, Decision Trees, and Random Forests as comparison models.",
+            "Second-stage category classifier trained on dark-pattern examples to estimate likely type after suspicious text is found.",
             "Expanded dataset experiment using Devitachi and Akash Nath sources; Linear SVM performs best on this less-balanced expanded dataset.",
             "Playwright webpage scanner as a demo layer that collects visible webpage text and sends snippets to the trained text model.",
         ],
@@ -150,6 +158,12 @@ def create_docx() -> Path:
         "baseline is easier to explain and Logistic Regression provides confidence scores for "
         "the Streamlit and Playwright demos."
     )
+    document.add_paragraph(
+        "For category recognition, a second-stage Linear SVM currently performs best with a "
+        "macro F1 score around 0.894. The category model is useful for explanation, but rare "
+        "classes such as Sneaking and Obstruction have fewer examples, so category output "
+        "should be treated as supporting evidence rather than a final label."
+    )
 
     add_doc_heading(document, "Sources of Bias")
     add_doc_bullets(
@@ -186,7 +200,7 @@ def create_docx() -> Path:
             "Report precision, recall, F1 score, confusion matrix, and edge cases instead of relying only on accuracy.",
             "Use the model as a human-in-the-loop review aid, not as an automatic accusation tool.",
             "In the Playwright scanner, show only higher-confidence flags by default to reduce low-confidence false positives.",
-            "Suppress low-context discount snippets and product-catalog/spec snippets during demos unless they contain urgency or scarcity pressure language.",
+            "Suppress low-context discount snippets, product-catalog/spec snippets, testimonial fragments, bare counters, and vague short snippets during demos unless they contain urgency or scarcity pressure language.",
             "Keep sentiment and full UI-context detection as future work unless more labeled data and a more complex training pipeline are available.",
             "Evaluate OCR, color/layout analysis, and UX-flow detection separately before making production-level claims.",
         ],
@@ -273,6 +287,7 @@ def create_pptx() -> Path:
             "Normalize datasets into common columns: text, label, category, and source.",
             "Train supervised text classifiers using TF-IDF features.",
             "Compare Logistic Regression, Naive Bayes, Linear SVM, Decision Trees, and Random Forests.",
+            "Train a second-stage category model on dark-pattern rows to estimate likely type.",
             "Run an expanded experiment with Devitachi and Akash Nath sources in addition to the balanced primary dataset.",
             "Use Playwright to collect visible webpage text during the demo and run snippets through the trained model.",
         ],
@@ -289,8 +304,20 @@ def create_pptx() -> Path:
             "TF-IDF: converts website text into numerical features.",
             "Primary model: Logistic Regression, selected for strongest F1 score and interpretability.",
             "Comparison models: Naive Bayes, Linear SVM, Decision Tree, and Random Forest.",
+            "Second-stage model: category classifier for suspicious snippets.",
             "Expanded experiment: Linear SVM performs best when adding Devitachi and Akash Nath data.",
             "Demo layer: Playwright webpage scanner for visible text and some DOM-based popup text.",
+        ],
+    )
+    add_slide(
+        prs,
+        "Second-Stage Category Model",
+        [
+            "Main binary model: predicts Dark Pattern vs Not Dark Pattern.",
+            "Category model: predicts likely type only after text looks suspicious.",
+            "Types include Scarcity, Social Proof, Urgency, Misdirection, Forced Action, Obstruction, and Sneaking.",
+            "Best category model: Linear SVM with macro F1 around 0.894.",
+            "Limitation: category labels are imbalanced, so this is supporting detail, not a final category judgment.",
         ],
     )
     add_slide(
@@ -315,6 +342,7 @@ def create_pptx() -> Path:
             "Use an 80/20 stratified train/test split on the balanced primary dataset.",
             "Evaluate accuracy, precision, recall, F1 score, and confusion matrix.",
             "Current best model: TF-IDF + Logistic Regression with F1 around 0.936.",
+            "Second-stage category model: Linear SVM with macro F1 around 0.894.",
             "Expanded dataset best model: Linear SVM with F1 around 0.872.",
             "Use a confidence threshold in the webpage scanner to reduce weak false positives.",
         ],
@@ -353,7 +381,7 @@ def create_pptx() -> Path:
             "Report precision, recall, F1, confusion matrix, and edge cases.",
             "Frame the model as a human-in-the-loop review aid.",
             "Filter low-confidence webpage scan results by default.",
-            "Filter plain discounts and catalog-style product/spec titles unless they include pressure language.",
+            "Filter plain discounts, catalog-style product/spec titles, testimonials, counters, and vague snippets unless they include pressure language.",
             "Treat sentiment, DOM structure, screenshots, and full UI flow as future work.",
             "Separate text, OCR, visual, and flow evaluation so each layer has clear evidence.",
         ],

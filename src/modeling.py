@@ -45,6 +45,27 @@ class ModelResult:
         }
 
 
+@dataclass(frozen=True)
+class CategoryModelResult:
+    """Evaluation result for a trained category classifier."""
+
+    name: str
+    pipeline: Pipeline
+    accuracy: float
+    precision_macro: float
+    recall_macro: float
+    f1_macro: float
+
+    def as_dict(self) -> dict[str, float | str]:
+        return {
+            "model": self.name,
+            "accuracy": self.accuracy,
+            "precision_macro": self.precision_macro,
+            "recall_macro": self.recall_macro,
+            "f1_macro": self.f1_macro,
+        }
+
+
 def make_classifier(model_name: str) -> BaseEstimator:
     """Create a classifier by display name."""
     if model_name == "Logistic Regression":
@@ -130,6 +151,48 @@ def train_and_compare(df: pd.DataFrame) -> list[ModelResult]:
     return sorted(results, key=lambda result: result.f1, reverse=True)
 
 
+def train_and_compare_categories(df: pd.DataFrame) -> list[CategoryModelResult]:
+    """Train all configured models for dark-pattern category classification."""
+    x_train, x_test, y_train, y_test = train_test_split(
+        df[TEXT_COLUMN],
+        df["category"],
+        test_size=0.2,
+        stratify=df["category"],
+        random_state=RANDOM_STATE,
+    )
+    results = []
+    for name in model_names():
+        pipeline = make_pipeline(name)
+        pipeline.fit(x_train, y_train)
+        predictions = pipeline.predict(x_test)
+        results.append(
+            CategoryModelResult(
+                name=name,
+                pipeline=pipeline,
+                accuracy=accuracy_score(y_test, predictions),
+                precision_macro=precision_score(
+                    y_test,
+                    predictions,
+                    average="macro",
+                    zero_division=0,
+                ),
+                recall_macro=recall_score(
+                    y_test,
+                    predictions,
+                    average="macro",
+                    zero_division=0,
+                ),
+                f1_macro=f1_score(
+                    y_test,
+                    predictions,
+                    average="macro",
+                    zero_division=0,
+                ),
+            )
+        )
+    return sorted(results, key=lambda result: result.f1_macro, reverse=True)
+
+
 @dataclass(frozen=True)
 class CrossValResult:
     """Cross-validation summary for a single model."""
@@ -179,6 +242,11 @@ def cross_validate_all(df: pd.DataFrame, n_splits: int = 5) -> list[CrossValResu
 
 def results_to_frame(results: list[ModelResult]) -> pd.DataFrame:
     """Convert model results into a metrics table."""
+    return pd.DataFrame([result.as_dict() for result in results])
+
+
+def category_results_to_frame(results: list[CategoryModelResult]) -> pd.DataFrame:
+    """Convert category model results into a metrics table."""
     return pd.DataFrame([result.as_dict() for result in results])
 
 

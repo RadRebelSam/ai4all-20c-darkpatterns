@@ -13,7 +13,12 @@ if str(ROOT) not in sys.path:
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-from src.predict import get_or_train_model
+from src.filters import infer_dark_pattern_type
+from src.predict import (
+    get_or_train_category_model,
+    get_or_train_model,
+    predict_dark_pattern_category,
+)
 from src.web_scanner import (
     extract_visible_text_with_playwright,
     score_snippets,
@@ -75,12 +80,28 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Do not suppress catalog-style product title/spec snippets without pressure language",
     )
+    parser.add_argument(
+        "--no-context-filter",
+        action="store_true",
+        help="Do not suppress testimonial fragments, bare counters, and vague short snippets",
+    )
     return parser.parse_args()
 
 
 def log_step(enabled: bool, message: str) -> None:
     if enabled:
         print(f"[step] {message}")
+
+
+def possible_type_for_text(text: str, category_model):
+    """Return likely category from the category model, with rule fallback."""
+    try:
+        category, confidence = predict_dark_pattern_category(text, category_model)
+        if confidence is None:
+            return category
+        return f"{category} ({confidence:.1%})"
+    except Exception:
+        return infer_dark_pattern_type(text)
 
 
 def main() -> None:
@@ -120,6 +141,7 @@ def main() -> None:
         min_confidence=None if args.include_neutral else args.threshold,
         suppress_simple_discounts=not args.no_price_filter,
         suppress_product_titles=not args.no_product_filter,
+        suppress_context_light=not args.no_context_filter,
     )
     if args.include_neutral:
         log_step(args.verbose, "Showing both dark-pattern and neutral predictions.")
@@ -138,6 +160,11 @@ def main() -> None:
                 args.verbose,
                 "Suppressing catalog-style product titles/specs unless they include pressure language.",
             )
+        if not args.no_context_filter:
+            log_step(
+                args.verbose,
+                "Suppressing testimonial fragments, bare counters, and vague short snippets.",
+            )
 
     print()
     print(f"Scanned URL: {args.url}")
@@ -150,10 +177,12 @@ def main() -> None:
         print("No likely dark-pattern text snippets were flagged above the threshold.")
         return
 
+    category_model = get_or_train_category_model()
     for index, result in enumerate(results[: args.limit], start=1):
         confidence = result.prediction.confidence
         confidence_text = "n/a" if confidence is None else f"{confidence:.1%}"
         print(f"{index}. {result.prediction.label_name} ({confidence_text})")
+        print(f"   Possible type: {possible_type_for_text(result.snippet, category_model)}")
         print(f"   {result.snippet}")
 
 

@@ -2,7 +2,11 @@ import pytest
 
 from src.data import load_primary_binary_dataset
 from src.modeling import make_pipeline
-from src.predict import predict_text, predict_text_for_demo
+from src.predict import (
+    predict_dark_pattern_category,
+    predict_text,
+    predict_text_for_demo,
+)
 
 
 @pytest.fixture()
@@ -65,3 +69,19 @@ def test_predict_text_for_demo_can_suppress_product_title_noise(small_pipeline):
         assert demo.label == 0
         assert demo.suppressed_by_filter
         assert demo.filter_reason is not None
+
+
+def test_predict_dark_pattern_category_returns_category():
+    df = load_primary_binary_dataset()
+    dark = df[df["label"] == 1]
+    sample = dark.groupby("category").head(10).reset_index(drop=True)
+    pipeline = make_pipeline("Logistic Regression")
+    pipeline.fit(sample["text"], sample["category"])
+
+    category, confidence = predict_dark_pattern_category(
+        "Only 2 left in stock. Buy now before this item sells out.",
+        pipeline,
+    )
+
+    assert category in set(sample["category"])
+    assert confidence is None or 0 <= confidence <= 1
