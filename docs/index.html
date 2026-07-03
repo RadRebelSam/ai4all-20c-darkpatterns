@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark Pattern Recognition | AI4ALL Ignite</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --teal-dark: #0d3b3b;
+            --teal: #14665a;
+            --teal-light: #1a8a76;
+            --teal-pale: #e8f5f1;
+            --accent: #e8913a;
+            --accent-light: #fdf0e2;
+            --ink: #182033;
+            --muted: #596273;
+            --soft: #f7f9fb;
+            --paper: #ffffff;
+            --border: #dfe6ec;
+            --shadow: 0 10px 28px rgba(18, 38, 63, 0.10);
+            --radius: 10px;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            color: var(--ink);
+            background:
+                linear-gradient(180deg, rgba(13, 59, 59, 0.06), rgba(255,255,255,0) 360px),
+                var(--soft);
+            line-height: 1.55;
+        }
+
+        a { color: var(--teal-light); text-decoration: none; }
+        a:hover { color: var(--accent); }
+        p { color: var(--muted); margin: 0.45rem 0 0; }
+        h1, h2, h3 { line-height: 1.15; }
+        h2 { color: var(--teal-dark); font-size: 1.25rem; }
+        h3 { color: var(--teal); font-size: 1rem; margin-bottom: 0.35rem; }
+        code {
+            background: var(--teal-pale);
+            border-radius: 4px;
+            color: var(--teal-dark);
+            padding: 0.05rem 0.25rem;
+            font-size: 0.92em;
+        }
+
+        .poster {
+            width: min(1380px, calc(100vw - 32px));
+            margin: 24px auto 36px;
+            background: var(--paper);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+
+        .hero {
+            background: linear-gradient(135deg, var(--teal-dark), var(--teal) 55%, var(--teal-light));
+            color: #fff;
+            padding: 2.1rem 2.5rem;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 2rem;
+            align-items: end;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.3rem, 5vw, 4.8rem);
+            font-weight: 850;
+            letter-spacing: -0.04em;
+        }
+
+        .subtitle {
+            color: rgba(255,255,255,0.88);
+            font-size: 1.15rem;
+            max-width: 780px;
+            margin-top: 0.65rem;
+        }
+
+        .team {
+            color: rgba(255,255,255,0.78);
+            margin-top: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .hero-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(120px, 1fr));
+            gap: 0.75rem;
+            min-width: 310px;
+        }
+
+        .metric {
+            border: 1px solid rgba(255,255,255,0.26);
+            background: rgba(255,255,255,0.13);
+            border-radius: var(--radius);
+            padding: 0.8rem 0.95rem;
+        }
+
+        .metric strong {
+            display: block;
+            color: #fff;
+            font-size: 1.55rem;
+            line-height: 1;
+        }
+
+        .metric span {
+            display: block;
+            color: rgba(255,255,255,0.78);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 0.35rem;
+        }
+
+        .poster-grid {
+            display: grid;
+            grid-template-columns: 1.05fr 1.35fr 1.05fr;
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        .panel {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem;
+            min-width: 0;
+        }
+
+        .panel.accent { border-top: 5px solid var(--accent); }
+        .panel.teal { border-top: 5px solid var(--teal-light); }
+        .panel.wide { grid-column: span 2; }
+        .panel.full { grid-column: 1 / -1; }
+
+        .label {
+            display: inline-block;
+            color: var(--teal-light);
+            background: var(--teal-pale);
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.45rem;
+            padding: 0.22rem 0.65rem;
+            text-transform: uppercase;
+        }
+
+        .bullets {
+            margin-top: 0.65rem;
+            padding-left: 1.05rem;
+            color: var(--muted);
+        }
+
+        .bullets li { margin: 0.36rem 0; }
+
+        .mini-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.65rem;
+            margin-top: 0.75rem;
+        }
+
+        .mini-card {
+            background: var(--soft);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem;
+        }
+
+        .mini-card strong {
+            display: block;
+            color: var(--teal-dark);
+            font-size: 1.28rem;
+        }
+
+        .pipeline {
+            display: grid;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .pipe-step {
+            border-left: 4px solid var(--teal-light);
+            background: var(--teal-pale);
+            border-radius: 6px;
+            color: var(--teal-dark);
+            font-weight: 700;
+            padding: 0.65rem 0.8rem;
+        }
+
+        .table-wrap { overflow-x: auto; margin-top: 0.75rem; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+        th {
+            background: var(--teal-dark);
+            color: #fff;
+            font-size: 0.74rem;
+            letter-spacing: 0.05em;
+            padding: 0.55rem;
+            text-align: left;
+            text-transform: uppercase;
+        }
+        td {
+            border-bottom: 1px solid var(--border);
+            color: var(--muted);
+            padding: 0.5rem 0.55rem;
+        }
+        tr.best td {
+            background: var(--accent-light);
+            color: var(--ink);
+            font-weight: 700;
+        }
+
+        .figure-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.85rem;
+            margin-top: 0.8rem;
+        }
+
+        figure {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--soft);
+        }
+
+        figure img {
+            display: block;
+            width: 100%;
+            height: 190px;
+            object-fit: contain;
+            background: #fff;
+            padding: 0.4rem;
+        }
+
+        figcaption {
+            border-top: 1px solid var(--border);
+            color: var(--ink);
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 0.55rem 0.65rem;
+            text-align: center;
+        }
+
+        .callout {
+            background: linear-gradient(135deg, var(--teal-pale), #fff);
+            border: 1px solid rgba(26, 138, 118, 0.25);
+            border-radius: 8px;
+            margin-top: 0.75rem;
+            padding: 0.8rem;
+        }
+
+        .impact-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.75rem;
+            margin-top: 0.75rem;
+        }
+
+        .impact-card {
+            background: var(--soft);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.8rem;
+        }
+
+        .footer {
+            align-items: center;
+            background: var(--teal-dark);
+            color: rgba(255,255,255,0.82);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            justify-content: space-between;
+            padding: 1rem 1.5rem;
+        }
+
+        .footer a { color: #ffd5a8; }
+
+        @media (max-width: 1000px) {
+            .hero { grid-template-columns: 1fr; }
+            .hero-metrics { min-width: 0; }
+            .poster-grid { grid-template-columns: 1fr; }
+            .panel.wide, .panel.full { grid-column: auto; }
+            .figure-grid { grid-template-columns: repeat(2, 1fr); }
+            .impact-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 560px) {
+            .poster { width: calc(100vw - 18px); margin-top: 10px; }
+            .hero { padding: 1.6rem 1rem; }
+            .poster-grid { padding: 0.65rem; }
+            .hero-metrics, .mini-grid, .figure-grid { grid-template-columns: 1fr; }
+            figure img { height: auto; }
+        }
+    </style>
+</head>
+<body>
+    <main class="poster">
+        <header class="hero">
+            <div>
+                <h1>Dark Pattern Recognition</h1>
+                <p class="subtitle">A poster-style showcase of a supervised NLP project that detects manipulative e-commerce language while documenting responsible AI limits.</p>
+                <p class="team">AI4ALL Ignite 2026 | Team 20C | Akanksha Madhu Kiran, Dexin (Sam) Yang, Rakshita Saroha, Rutvi Karnik, Samyog Maharjan</p>
+            </div>
+            <div class="hero-metrics" aria-label="Project metrics">
+                <div class="metric"><strong>2,356</strong><span>Primary Rows</span></div>
+                <div class="metric"><strong>0.936</strong><span>Best F1</span></div>
+                <div class="metric"><strong>5</strong><span>Models Tested</span></div>
+                <div class="metric"><strong>2</strong><span>Demo Modes</span></div>
+            </div>
+        </header>
+
+        <section class="poster-grid">
+            <article class="panel teal">
+                <span class="label">Project Overview</span>
+                <h2>What We Built</h2>
+                <p>Dark patterns are deceptive UX or marketing tactics that pressure users into choices they may not fully intend. This project classifies short e-commerce text snippets as <strong>Dark Pattern</strong> or <strong>Not Dark Pattern</strong>.</p>
+                <div class="callout">
+                    <h3>Research Question</h3>
+                    <p>How effectively can supervised text-classification models detect dark-pattern language, and what are the limits of a text-first consumer-protection tool?</p>
+                </div>
+            </article>
+
+            <article class="panel wide">
+                <span class="label">Data and Pipeline</span>
+                <h2>From Dataset to Prediction</h2>
+                <div class="mini-grid">
+                    <div class="mini-card"><strong>Primary</strong><p>Krish Uppal balanced dataset: 1,178 dark-pattern and 1,178 non-dark-pattern snippets.</p></div>
+                    <div class="mini-card"><strong>Expanded</strong><p>Devitachi and Akash Nath sources support robustness checks after cleaning and deduplication.</p></div>
+                </div>
+                <div class="pipeline">
+                    <div class="pipe-step">1. Normalize columns: text, label, category, source</div>
+                    <div class="pipe-step">2. Split data: 80/20 random stratified train/test split</div>
+                    <div class="pipe-step">3. Convert text to TF-IDF unigram + bigram features</div>
+                    <div class="pipe-step">4. Predict with Logistic Regression and compare against four baselines</div>
+                </div>
+            </article>
+
+            <article class="panel accent">
+                <span class="label">Model</span>
+                <h2>Why Logistic Regression?</h2>
+                <p>It performed best on the primary balanced dataset, gives confidence scores, trains quickly, and stays interpretable through feature weights.</p>
+                <ul class="bullets">
+                    <li>Type: supervised binary text classification</li>
+                    <li>Input: website text snippet</li>
+                    <li>Output: label + confidence score</li>
+                </ul>
+            </article>
+
+            <article class="panel full">
+                <span class="label">Evaluation</span>
+                <h2>Five Classifiers Compared</h2>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr><th>Model</th><th>Accuracy</th><th>Precision</th><th>Recall</th><th>F1</th><th>Interpretation</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr class="best"><td>Logistic Regression</td><td>93.9%</td><td>97.3%</td><td>90.3%</td><td>0.936</td><td>Best default model; interpretable and confidence-ready.</td></tr>
+                            <tr><td>Linear SVM</td><td>93.2%</td><td>95.9%</td><td>90.3%</td><td>0.930</td><td>Close second; stronger in expanded experiment.</td></tr>
+                            <tr><td>Naive Bayes</td><td>92.8%</td><td>92.8%</td><td>92.8%</td><td>0.928</td><td>Fast and balanced, but assumes feature independence.</td></tr>
+                            <tr><td>Random Forest</td><td>92.8%</td><td>98.6%</td><td>86.9%</td><td>0.923</td><td>High precision, lower recall.</td></tr>
+                            <tr><td>Decision Tree</td><td>91.7%</td><td>98.0%</td><td>85.2%</td><td>0.912</td><td>Easy to explain, more prone to overfitting.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="panel full">
+                <span class="label">Visual Evidence</span>
+                <h2>Data Visualizations</h2>
+                <div class="figure-grid">
+                    <figure>
+                        <img src="figures/model_comparison.png" alt="Model comparison chart">
+                        <figcaption>Model Comparison</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="figures/confusion_matrix.png" alt="Confusion matrix">
+                        <figcaption>Confusion Matrix</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="figures/category_distribution.png" alt="Category distribution chart">
+                        <figcaption>Category Distribution</figcaption>
+                    </figure>
+                    <figure>
+                        <img src="figures/top_features.png" alt="Top TF-IDF features chart">
+                        <figcaption>Top TF-IDF Features</figcaption>
+                    </figure>
+                </div>
+            </article>
+
+            <article class="panel teal">
+                <span class="label">Demo</span>
+                <h2>Two Ways to Try It</h2>
+                <ul class="bullets">
+                    <li><strong>Streamlit app:</strong> paste text and see prediction + confidence.</li>
+                    <li><strong>Playwright scanner:</strong> open a live webpage, extract visible text, split snippets, and score each snippet.</li>
+                    <li><strong>Safeguards:</strong> suppress plain discounts and product specs unless pressure language is present.</li>
+                </ul>
+            </article>
+
+            <article class="panel accent">
+                <span class="label">Error Analysis</span>
+                <h2>What We Learned From Testing</h2>
+                <p>Real webpage scans initially flagged ordinary sale labels and catalog titles such as <code>Previous price: $99.00 47% off</code> or camera specs with <code>US Stock</code>.</p>
+                <p>The demo now filters these low-context false positives while still reviewing urgency/scarcity language like <code>limited time</code>, <code>low stock</code>, and <code>only 2 left</code>.</p>
+            </article>
+
+            <article class="panel">
+                <span class="label">Training Improvements</span>
+                <h2>Without New Datasets</h2>
+                <ul class="bullets">
+                    <li>Hard-negative mining from existing scans</li>
+                    <li>TF-IDF parameter tuning</li>
+                    <li>Logistic Regression regularization tuning</li>
+                    <li>Threshold tuning for precision/recall tradeoff</li>
+                    <li>Cross-validation for stability</li>
+                </ul>
+            </article>
+
+            <article class="panel full">
+                <span class="label">Responsible AI</span>
+                <h2>Impact, Bias, and Production Limits</h2>
+                <div class="impact-grid">
+                    <div class="impact-card">
+                        <h3>Positive Impact</h3>
+                        <p>Helps consumers notice manipulative language, supports website audits, and makes dark-pattern examples easier to discuss.</p>
+                    </div>
+                    <div class="impact-card">
+                        <h3>Risks</h3>
+                        <p>False positives can unfairly flag legitimate businesses; false negatives can miss real harms. Labels reflect human judgment and English e-commerce bias.</p>
+                    </div>
+                    <div class="impact-card">
+                        <h3>Limits</h3>
+                        <p>The project is text-first. Real production detection would need OCR, screenshot analysis, DOM/CSS features, color/layout signals, and scripted UX-flow testing.</p>
+                    </div>
+                </div>
+            </article>
+
+            <article class="panel wide">
+                <span class="label">Future Work</span>
+                <h2>Next Steps</h2>
+                <ul class="bullets">
+                    <li>Use hard-negative mining to improve model training from current mistakes.</li>
+                    <li>Try calibrated Linear SVM and transformer-based NLP models.</li>
+                    <li>Add screenshot + OCR experiments for image-based text.</li>
+                    <li>Evaluate UI flow manipulation in checkout, cancellation, cookie consent, and unsubscribe journeys.</li>
+                    <li>Build a browser-extension prototype after stronger validation.</li>
+                </ul>
+            </article>
+
+            <article class="panel">
+                <span class="label">Links</span>
+                <h2>Project Access</h2>
+                <p><strong>Repository:</strong><br><a href="https://github.com/RadRebelSam/ai4all-20c-darkpatterns" target="_blank" rel="noopener">github.com/RadRebelSam/ai4all-20c-darkpatterns</a></p>
+                <p><strong>GitHub Page:</strong><br><a href="https://radrebelsam.github.io/ai4all-20c-darkpatterns/" target="_blank" rel="noopener">radrebelsam.github.io/ai4all-20c-darkpatterns</a></p>
+                <p><strong>Core files:</strong> <code>README.md</code>, <code>src/</code>, <code>scripts/</code>, <code>reports/figures/</code></p>
+            </article>
+
+            <article class="panel full">
+                <span class="label">Citations</span>
+                <h2>Selected References</h2>
+                <p>Mathur et al. (2019), <em>Dark Patterns at Scale</em>; Gray et al. (2018), <em>The Dark (Patterns) Side of UX Design</em>; FTC (2022), <em>Bringing Dark Patterns to Light</em>; Luguri &amp; Strahilevitz (2021), <em>Shining a Light on Dark Patterns</em>; Narayanan et al. (2020), <em>Dark Patterns: Past, Present, and Future</em>; Ramteke et al. (2024), <em>Detecting Deceptive Dark Patterns in E-commerce Platforms</em>; Koh &amp; Seah (2023), <em>Unintended Consumption</em>.</p>
+            </article>
+        </section>
+
+        <footer class="footer">
+            <span>Dark Pattern Recognition | AI4ALL Ignite Team 20C</span>
+            <span><a href="https://github.com/RadRebelSam/ai4all-20c-darkpatterns" target="_blank" rel="noopener">GitHub Repository</a></span>
+        </footer>
+    </main>
+</body>
+</html>

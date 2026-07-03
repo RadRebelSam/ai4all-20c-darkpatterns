@@ -1,0 +1,2 @@
+"""Dark pattern recognition package."""
+
