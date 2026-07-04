@@ -1,0 +1,6 @@
+model,cv_accuracy_mean,cv_accuracy_std,cv_f1_mean,cv_f1_std
+Linear SVM,0.944,0.0102,0.9433,0.0109
+Logistic Regression,0.941,0.0125,0.9391,0.0135
+Random Forest,0.9363,0.0119,0.933,0.0136
+Decision Tree,0.9232,0.0144,0.9192,0.0159
+Naive Bayes,0.8786,0.0533,0.8885,0.0448

@@ -468,6 +468,7 @@
                         </tbody>
                     </table>
                 </div>
+                <p style="margin-top:0.75rem;">Metrics are from a single 20% stratified held-out test set. 5-fold stratified cross-validation confirms stability: Logistic Regression F1 = 0.939 &plusmn; 0.014 and Linear SVM F1 = 0.943 &plusmn; 0.011, so the two leaders sit within one standard deviation of each other.</p>
             </article>
 
             <article class="panel full">
@@ -557,7 +558,7 @@
                     </div>
                     <div class="impact-card">
                         <h3>Limits</h3>
-                        <p>The project is text-first. Real production detection would need OCR, screenshot analysis, DOM/CSS features, color/layout signals, and scripted UX-flow testing.</p>
+                        <p>The project is text-first. Real production detection would need surrounding UI context, sentiment/tone cues, OCR, screenshot analysis, DOM/CSS features, and scripted UX-flow testing.</p>
                     </div>
                     <div class="impact-card">
                         <h3>Mitigation</h3>
@@ -573,8 +574,8 @@
                     <li><strong>August 2026:</strong> label 300 real webpage snippets, including normal discounts and product catalog text.</li>
                     <li><strong>September 2026:</strong> evaluate on 100 external examples from websites outside the Kaggle sources.</li>
                     <li><strong>October 2026:</strong> add 50 examples for each rare category and compare per-class F1.</li>
-                    <li><strong>November 2026:</strong> test screenshot + OCR extraction on 50 product or checkout pages.</li>
-                    <li><strong>December 2026:</strong> script checkout, cancellation, and cookie-consent flow audits.</li>
+                    <li><strong>November 2026:</strong> test screenshot + OCR extraction and add context/sentiment features for 50 product or checkout pages.</li>
+                    <li><strong>December 2026:</strong> script checkout, cancellation, and cookie-consent flow audits so text can be judged with surrounding UI context.</li>
                 </ul>
             </article>
 

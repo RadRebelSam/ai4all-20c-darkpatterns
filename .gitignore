@@ -12,3 +12,4 @@ Thumbs.db
 tmp_dataset_probe/
 GUIDE.md
 deliverables/
+outputs/*.log

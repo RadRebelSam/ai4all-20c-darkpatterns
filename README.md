@@ -68,6 +68,18 @@ All five models were evaluated on the same 20% held-out test set (stratified spl
 
 **Why Logistic Regression for Model 1?** It achieves the highest binary F1 score, produces probability estimates for confidence scores in the app/scanner, and its coefficients can be inspected to verify that the model is learning meaningful text features.
 
+**Cross-validation for stability.** Because the table above reflects a single 20% held-out split, we also ran 5-fold stratified cross-validation on the full primary dataset (`python scripts/cross_validate.py`, saved to `reports/cv_results.csv`). The mean ± standard deviation F1 scores confirm the models are stable rather than lucky on one split:
+
+| Model | Accuracy (mean ± std) | F1 (mean ± std) |
+| --- | ---: | ---: |
+| Linear SVM | 0.944 ± 0.010 | 0.943 ± 0.011 |
+| Logistic Regression | 0.941 ± 0.013 | 0.939 ± 0.014 |
+| Random Forest | 0.936 ± 0.012 | 0.933 ± 0.014 |
+| Decision Tree | 0.923 ± 0.014 | 0.919 ± 0.016 |
+| Naive Bayes | 0.879 ± 0.053 | 0.889 ± 0.045 |
+
+Logistic Regression and Linear SVM are within one standard deviation of each other; Logistic Regression remains the app default because it also exposes calibrated probability scores.
+
 ## Model 2: Category Classification Results
 
 The second-stage model is trained only on examples that are already labeled as dark patterns. It predicts the likely category/type after the binary model has flagged text as suspicious.
@@ -298,5 +310,9 @@ These steps should resolve the permission error when installing dependencies on 
 6. Luguri, J. & Strahilevitz, L. J. (2021). Shining a Light on Dark Patterns. *Journal of Legal Analysis*, 13(1), 43-109. https://doi.org/10.1093/jla/laaa006
 
 7. Narayanan, A., Mathur, A., Chetty, M., & Kshirsagar, M. (2020). Dark Patterns: Past, Present, and Future. *Queue*, 18(2), 67-92. https://doi.org/10.1145/3400899.3400901
+
+8. Ramteke, A., Tembhurne, S., Sonawane, G., & Bhimanpallewar, R. N. (2024). Detecting Deceptive Dark Patterns in E-commerce Platforms. *arXiv preprint* arXiv:2406.01608. https://arxiv.org/abs/2406.01608
+
+9. Koh, W. C., & Seah, V. (2023). Unintended consumption: The effects of four e-commerce dark patterns. *Cleaner and Responsible Consumption*, 11, 100145. https://www.sciencedirect.com/science/article/pii/S2666784323000463
 
 Data sources: Krish Uppal dark-patterns dataset, Adarsh M09 dark-pattern dataset, Devitachi dark-pattern dataset, Mohit Sharma dark-patterns on e-commerce platforms dataset, and Akash Nath deceptive-patterns classification data from Kaggle.
