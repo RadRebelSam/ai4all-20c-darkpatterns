@@ -316,3 +316,23 @@ These steps should resolve the permission error when installing dependencies on 
 9. Koh, W. C., & Seah, V. (2023). Unintended consumption: The effects of four e-commerce dark patterns. *Cleaner and Responsible Consumption*, 11, 100145. https://www.sciencedirect.com/science/article/pii/S2666784323000463
 
 Data sources: Krish Uppal dark-patterns dataset, Adarsh M09 dark-pattern dataset, Devitachi dark-pattern dataset, Mohit Sharma dark-patterns on e-commerce platforms dataset, and Akash Nath deceptive-patterns classification data from Kaggle.
+
+## Deliverables
+
+### Student Norms & Conflict Resolution Agreement
+https://docs.google.com/document/d/1xZe-Gzp7QJp7ArmpTayKea5mC11Ep3e2UeTyxgF7_Ao/edit?usp=sharing
+
+### Datasets
+https://docs.google.com/spreadsheets/d/1qfgSGvv1ksOrKMf8d0CXDxduyCVPPC2qsw52Xyswe6I/edit?usp=sharing
+
+### Proposal
+https://docs.google.com/document/d/1yw7u5fxK5i6h2kTN7Yf3jU65YGKgjuPTuyHD_1Dgsgk/edit?usp=sharing
+
+### Proposal Presentation
+https://docs.google.com/presentation/d/1G-T5sNNgWVGZw4izbyFwNgn2sTScSlYtnYZWRO04eN4/edit?usp=sharing
+
+### Final Presentation
+https://docs.google.com/presentation/d/1VXO8nk5VA0iO1YYWCzUIlaQ-IDXtOgfFWqVQdmMusXc/edit?usp=sharing
+
+### Poster
+https://docs.google.com/presentation/d/1BkSWZKBQGaChyAHT9umTdrrqzU6iINmbU-dE4dtqUC0/edit?usp=sharing
