@@ -675,6 +675,9 @@ webpage_examples = [
     "https://www.ulta.com/promotion/sale",
     "https://toonbee.ai/",
     "https://www.cnn.com/",
+    "https://www.udemy.com/course/c-in-1-hour/",
+    "https://www.booking.com/reviews/mx/hotel/amp-hostal-nojoch-che-coba.en-gb.html",
+    "https://usercentrics.com/knowledge-hub/dark-patterns-and-how-they-affect-consent/",
 ]
 
 text_tab, scanner_tab = st.tabs(["Analyze text", "Scan webpage"])
@@ -818,7 +821,10 @@ with scanner_tab:
             st.warning("Enter a webpage URL first.")
         else:
             try:
-                st.info("Scanning can take a few seconds while Playwright opens the page.")
+                st.info(
+                    "Scanning can take a few seconds while the app opens the page. "
+                    "If browser scanning stalls, it falls back to plain page text."
+                )
                 progress = st.progress(0)
                 status = st.empty()
                 snippets, results = scan_url_with_progress(

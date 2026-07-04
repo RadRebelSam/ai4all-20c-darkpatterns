@@ -75,6 +75,7 @@ CONTENT_TITLE_RE = re.compile(
     r"^(\d+\)?\s*)?(copy|write|create|generate|build|structure|template|lesson|module)\b",
     re.IGNORECASE,
 )
+PAST_TENSE_LEFT_RE = re.compile(r"\bleft\b", re.IGNORECASE)
 
 
 def contains_pressure_language(snippet: str) -> bool:
@@ -150,5 +151,7 @@ def is_low_context_web_snippet(snippet: str) -> bool:
     if TESTIMONIAL_FRAGMENT_RE.match(cleaned):
         return True
     if CONTENT_TITLE_RE.match(cleaned) and len(words) <= 12:
+        return True
+    if PAST_TENSE_LEFT_RE.search(cleaned):
         return True
     return False

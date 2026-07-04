@@ -108,6 +108,9 @@ def test_low_context_web_filter_suppresses_weak_page_fragments():
     assert is_low_context_web_snippet(
         "Thanks Daniel for the 45 minute walk through call yesterday."
     )
+    assert is_low_context_web_snippet(
+        "No water in sink, shower, or toilet in morning we left."
+    )
 
     assert not is_low_context_web_snippet(
         "Only 2 left in stock. Buy now before the deal ends."
