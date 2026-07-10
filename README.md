@@ -120,7 +120,34 @@ Publication-quality figures are in [`reports/figures/`](reports/figures/) and em
 
 ## Run the Project
 
-Install dependencies:
+### Quick Start (First-Time Setup)
+
+Run these in order after cloning. Each line notes what it does. Windows/PowerShell commands are shown; on macOS/Linux use `source .venv/bin/activate` instead of the activate line.
+
+```powershell
+git clone https://github.com/RadRebelSam/ai4all-20c-darkpatterns.git   # download the project
+cd ai4all-20c-darkpatterns                                             # enter the project folder
+python -m venv .venv                                                   # create an isolated environment
+.\.venv\Scripts\Activate.ps1                                           # activate it (prompt shows (.venv))
+python -m pip install --upgrade pip                                    # upgrade pip
+pip install -r requirements.txt                                        # install pinned dependencies
+python -m playwright install chromium                                  # download the browser for the scanner
+python -m pytest                                                       # verify setup (expect 23 passed)
+python scripts/train_models.py                                         # train models so the app/scanner have one to load
+```
+
+Then run either demo:
+
+```powershell
+streamlit run app/streamlit_app.py                                     # Demo 1: paste text, get a prediction
+python scripts/scan_page.py https://example.com --headed               # Demo 2: scan a live webpage (visible browser)
+```
+
+> **Note:** A virtual environment is not relocatable. If you move or copy the project folder, delete `.venv` and recreate it (`Remove-Item -Recurse -Force .venv`, then `python -m venv .venv`). Open a new terminal? Just re-run the activate line — no need to reinstall.
+
+The remaining subsections explain each step in more detail.
+
+### Install dependencies
 
 ```bash
 pip install -r requirements.txt
