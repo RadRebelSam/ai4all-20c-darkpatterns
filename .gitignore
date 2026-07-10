@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 .pytest_cache/
+.ipynb_checkpoints/
 .mypy_cache/
 .ruff_cache/
 .env
@@ -11,5 +12,6 @@ Thumbs.db
 **/~$*
 tmp_dataset_probe/
 GUIDE.md
+guide/
 deliverables/
 outputs/*.log
