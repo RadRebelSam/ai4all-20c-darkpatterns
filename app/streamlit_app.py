@@ -443,7 +443,7 @@ def model_result_rows(text: str, *, apply_filters: bool) -> list[dict[str, objec
         if apply_filters:
             prediction = predict_text_for_demo(text, pipeline)
             filter_note = (
-                "Adjusted for simple product/price text"
+                "Adjusted by a demo false-positive filter"
                 if prediction.suppressed_by_filter
                 else "No adjustment"
             )
@@ -473,8 +473,8 @@ def render_main_result(prediction) -> None:
     if prediction.suppressed_by_filter:
         title = "Probably okay"
         body = (
-            "The first pass looked suspicious, but this appears to be simple "
-            "price or product text without pressure language."
+            "The first pass looked suspicious, but a demo filter recognized "
+            "ordinary webpage text without pressure directed at the shopper."
         )
         st.warning(f"**Main answer: {title}**\n\n{body}")
     elif prediction.label == 1:
@@ -557,6 +557,7 @@ def scan_url(
         suppress_simple_discounts=apply_filters,
         suppress_product_titles=apply_filters,
         suppress_context_light=apply_filters and hide_context_light,
+        suppress_benign_context=apply_filters,
     )
     return snippets, results[:limit]
 
@@ -595,6 +596,7 @@ def scan_url_with_progress(
         suppress_simple_discounts=apply_filters,
         suppress_product_titles=apply_filters,
         suppress_context_light=apply_filters and hide_context_light,
+        suppress_benign_context=apply_filters,
     )
 
     status.write("Done.")
@@ -721,7 +723,8 @@ with text_tab:
             key="apply_text_filters",
         )
         st.caption(
-            "Filters hide obvious false positives like plain discounts or product specs. "
+            "Filters hide obvious false positives like plain discounts, product specs, "
+            "metadata, status messages, and educational examples. "
             "Turn off to see raw model output."
         )
         analyze = st.button("Analyze text", type="primary", use_container_width=True)
@@ -800,7 +803,8 @@ with scanner_tab:
             key="apply_scan_filters",
         )
         st.caption(
-            "Filters hide plain discounts, product/spec text, and vague fragments. "
+            "Filters hide plain discounts, product/spec text, benign comparisons, "
+            "metadata, status messages, educational examples, and vague fragments. "
             "Turn off to inspect raw scanner output."
         )
         hide_context_light = True

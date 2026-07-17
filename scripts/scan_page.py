@@ -83,7 +83,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--no-context-filter",
         action="store_true",
-        help="Do not suppress testimonial fragments, bare counters, and vague short snippets",
+        help=(
+            "Do not suppress testimonial fragments, metadata, benign comparisons, "
+            "status messages, educational examples, and vague short snippets"
+        ),
     )
     return parser.parse_args()
 
@@ -142,6 +145,7 @@ def main() -> None:
         suppress_simple_discounts=not args.no_price_filter,
         suppress_product_titles=not args.no_product_filter,
         suppress_context_light=not args.no_context_filter,
+        suppress_benign_context=not args.no_context_filter,
     )
     if args.include_neutral:
         log_step(args.verbose, "Showing both dark-pattern and neutral predictions.")
@@ -163,7 +167,8 @@ def main() -> None:
         if not args.no_context_filter:
             log_step(
                 args.verbose,
-                "Suppressing testimonial fragments, bare counters, and vague short snippets.",
+                "Suppressing benign comparisons, metadata, status messages, educational "
+                "examples, testimonial fragments, bare counters, and vague short snippets.",
             )
 
     print()

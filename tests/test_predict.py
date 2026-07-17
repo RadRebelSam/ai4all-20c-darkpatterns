@@ -71,6 +71,27 @@ def test_predict_text_for_demo_can_suppress_product_title_noise(small_pipeline):
         assert demo.filter_reason is not None
 
 
+def test_predict_text_for_demo_can_suppress_extended_benign_context(small_pipeline):
+    text = "Purchased in the United States on January 5, 2026."
+    raw = predict_text(text, small_pipeline)
+    demo = predict_text_for_demo(text, small_pipeline)
+
+    assert raw.label in {0, 1}
+    if raw.label == 1:
+        assert demo.label == 0
+        assert demo.suppressed_by_filter
+        assert demo.filter_reason is not None
+
+
+def test_predict_text_for_demo_keeps_real_pressure_with_benign_words(small_pipeline):
+    demo = predict_text_for_demo(
+        "Limited storage plan available today only. Offer ends tonight.",
+        small_pipeline,
+    )
+
+    assert not demo.suppressed_by_filter
+
+
 def test_predict_dark_pattern_category_returns_category():
     df = load_primary_binary_dataset()
     dark = df[df["label"] == 1]

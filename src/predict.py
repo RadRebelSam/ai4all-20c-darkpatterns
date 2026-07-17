@@ -9,6 +9,7 @@ from sklearn.pipeline import Pipeline
 
 from src.data import load_dark_pattern_category_dataset, load_primary_binary_dataset
 from src.filters import (
+    is_benign_context_snippet,
     is_low_context_product_snippet,
     is_simple_price_or_discount_snippet,
 )
@@ -108,6 +109,7 @@ def predict_text_for_demo(
     *,
     suppress_simple_discounts: bool = True,
     suppress_product_titles: bool = True,
+    suppress_benign_context: bool = True,
 ) -> Prediction:
     """Predict text and apply demo safeguards used by user-facing interfaces."""
     prediction = predict_text(text, pipeline)
@@ -141,6 +143,22 @@ def predict_text_for_demo(
             filter_reason=(
                 "Catalog-style product title/spec text was suppressed because it did not "
                 "include urgency or scarcity pressure language."
+            ),
+        )
+    if (
+        suppress_benign_context
+        and prediction.label == 1
+        and is_benign_context_snippet(prediction.text)
+    ):
+        return Prediction(
+            text=prediction.text,
+            label=0,
+            label_name="Not Dark Pattern",
+            confidence=prediction.confidence,
+            suppressed_by_filter=True,
+            filter_reason=(
+                "Benign comparison, metadata, status, availability, or educational "
+                "text was suppressed because it did not direct pressure at the shopper."
             ),
         )
     return prediction

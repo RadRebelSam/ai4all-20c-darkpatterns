@@ -11,20 +11,24 @@ PRICE_OR_DISCOUNT_RE = re.compile(
 PRESSURE_LANGUAGE_RE = re.compile(
     r"("
     r"hurry|last chance|limited time|limited offer|ends soon|ends tonight|"
-    r"sale ends|deal ends|expires|almost gone|selling fast|"
+    r"sale ends|deal ends|offer ends|expires|today only|one day only|"
+    r"order within|don't miss out|do not miss out|almost gone|selling fast|"
     r"only\s+\d+\s+(left|remaining)|\d+\s+(left|remaining)\s+in stock|"
-    r"low stock|while supplies last|act now"
+    r"few remaining|last one available|stock running low|low stock|"
+    r"while supplies last|act now"
     r")",
     re.IGNORECASE,
 )
 URGENCY_RE = re.compile(
     r"(hurry|last chance|limited time|limited offer|ends soon|ends tonight|"
-    r"sale ends|deal ends|expires|act now)",
+    r"sale ends|deal ends|offer ends|expires|today only|one day only|"
+    r"order within|don't miss out|do not miss out|act now)",
     re.IGNORECASE,
 )
 SCARCITY_RE = re.compile(
     r"(almost gone|selling fast|only\s+\d+\s+(left|remaining)|"
-    r"\d+\s+(left|remaining)\s+in stock|low stock|while supplies last)",
+    r"\d+\s+(left|remaining)\s+in stock|few remaining|last one available|"
+    r"stock running low|low stock|while supplies last)",
     re.IGNORECASE,
 )
 SOCIAL_PROOF_RE = re.compile(
@@ -76,6 +80,84 @@ CONTENT_TITLE_RE = re.compile(
     re.IGNORECASE,
 )
 PAST_TENSE_LEFT_RE = re.compile(r"\bleft\b", re.IGNORECASE)
+BENIGN_FEATURE_COMPARISON_RE = re.compile(
+    r"("
+    r"\blimited\s+(library|storage|features?|functionality|selection|options|"
+    r"catalog|capacity|support|integrations?|customization|resolution)\b|"
+    r"\btime[- ]consuming\b|"
+    r"\btakes?\s+too\s+much\s+time\b|"
+    r"\baverage\s+.+\s+time\s*:\s*minutes?\s*,?\s*not\s+days?\b|"
+    r"\breplacement\s+for\s+stock\s+footage\b|"
+    r"\boverused\s+stock\s+footage\b|"
+    r"\bcosts?\s+a\s+lot\b|"
+    r"\bhard\s+to\s+use\b"
+    r")",
+    re.IGNORECASE,
+)
+REVIEW_PURCHASE_METADATA_RE = re.compile(
+    r"("
+    r"\bverified\s+purchase\b|"
+    r"\b(purchased|reviewed)\s+in\s+.{2,80}\s+on\s+"
+    r"(january|february|march|april|may|june|july|august|september|"
+    r"october|november|december|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b|"
+    r"\bdate\s+of\s+stay\s*:\s*|"
+    r"\btrip\s+type\s*:\s*"
+    r")",
+    re.IGNORECASE,
+)
+COURSE_METADATA_RE = re.compile(
+    r"("
+    r"\b\d+(\.\d+)?\s+hours?\s+of\s+on[- ]demand\s+video\b|"
+    r"\bcertificate\s+of\s+completion\b|"
+    r"\bfull\s+lifetime\s+access\b|"
+    r"\bdownloadable\s+resources?\b|"
+    r"\bcoding\s+exercises?\b|"
+    r"\bpractice\s+tests?\b"
+    r")",
+    re.IGNORECASE,
+)
+ORDER_CONFIRMATION_RE = re.compile(
+    r"("
+    r"^(your\s+)?(order|payment|purchase)\s+"
+    r"(is\s+)?(confirmed|complete|completed|received|successful)\b|"
+    r"^(thank\s+you|thanks)\s+for\s+your\s+(order|purchase)\b|"
+    r"^we('ve|\s+have)\s+received\s+your\s+(order|payment)\b"
+    r")",
+    re.IGNORECASE,
+)
+NEUTRAL_AVAILABILITY_RE = re.compile(
+    r"("
+    r"^(currently\s+)?(in\s+stock|out\s+of\s+stock|unavailable)\b|"
+    r"\bavailable\s+in\s+"
+    r"((\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+)?"
+    r"(sizes?|colou?rs?|styles?|formats?)\b|"
+    r"\bavailable\s+for\s+(pickup|delivery|download)\b|"
+    r"\bready\s+to\s+ship\b|"
+    r"\bcheck\s+back\s+later\b"
+    r")",
+    re.IGNORECASE,
+)
+EDUCATIONAL_CONTEXT_RE = re.compile(
+    r"("
+    r"\b(this|the)\s+(article|guide|lesson|section|study|research)\b|"
+    r"\bdark\s+patterns?\b|"
+    r"\bexamples?\s+of\b|"
+    r"\bknown\s+as\b|"
+    r"\brefers?\s+to\b|"
+    r"\b(research|studies)\s+(shows?|found)\b|"
+    r"\b(websites?|companies|brands|apps?|games?|they)\s+"
+    r"(use|uses|display|displays|show|shows|create|creates)\b"
+    r")",
+    re.IGNORECASE,
+)
+EDUCATIONAL_PATTERN_CUE_RE = re.compile(
+    r"("
+    r"\bdark\s+patterns?\b|"
+    r"\b(urgency|scarcity|social\s+proof|confirmshaming)\b|"
+    r"\b(countdown|pressure|manipulat|deceptive)\w*\b"
+    r")",
+    re.IGNORECASE,
+)
 
 
 def contains_pressure_language(snippet: str) -> bool:
@@ -155,3 +237,68 @@ def is_low_context_web_snippet(snippet: str) -> bool:
     if PAST_TENSE_LEFT_RE.search(cleaned):
         return True
     return False
+
+
+def is_benign_feature_comparison_snippet(snippet: str) -> bool:
+    """Detect ordinary feature limitations or product-comparison copy.
+
+    Words such as "limited" and "time" are strong model features, but phrases
+    such as "limited storage" or "time consuming" describe a product comparison
+    rather than pressure on the shopper.
+    """
+    return bool(BENIGN_FEATURE_COMPARISON_RE.search(snippet)) and not (
+        contains_pressure_language(snippet)
+    )
+
+
+def is_review_or_purchase_metadata_snippet(snippet: str) -> bool:
+    """Detect review-platform metadata rather than social-proof pressure."""
+    return bool(REVIEW_PURCHASE_METADATA_RE.search(snippet)) and not (
+        contains_pressure_language(snippet)
+    )
+
+
+def is_course_metadata_snippet(snippet: str) -> bool:
+    """Detect ordinary course contents and access information."""
+    return bool(COURSE_METADATA_RE.search(snippet)) and not contains_pressure_language(
+        snippet
+    )
+
+
+def is_order_confirmation_snippet(snippet: str) -> bool:
+    """Detect completed order/payment messages without a countdown or threat."""
+    return bool(ORDER_CONFIRMATION_RE.search(snippet.strip())) and not (
+        contains_pressure_language(snippet)
+    )
+
+
+def is_neutral_availability_snippet(snippet: str) -> bool:
+    """Detect ordinary availability or fulfillment labels without scarcity."""
+    return bool(NEUTRAL_AVAILABILITY_RE.search(snippet.strip())) and not (
+        contains_pressure_language(snippet)
+    )
+
+
+def is_educational_or_article_snippet(snippet: str) -> bool:
+    """Detect text that discusses dark patterns instead of directing a shopper.
+
+    This requires both reporting/educational language and a dark-pattern cue or
+    recognized pressure phrase so ordinary marketing copy is not broadly hidden.
+    """
+    has_context = bool(EDUCATIONAL_CONTEXT_RE.search(snippet))
+    has_pattern_cue = bool(EDUCATIONAL_PATTERN_CUE_RE.search(snippet))
+    return has_context and (has_pattern_cue or contains_pressure_language(snippet))
+
+
+def is_benign_context_snippet(snippet: str) -> bool:
+    """Return whether any extended demo filter identifies benign context."""
+    return any(
+        (
+            is_benign_feature_comparison_snippet(snippet),
+            is_review_or_purchase_metadata_snippet(snippet),
+            is_course_metadata_snippet(snippet),
+            is_order_confirmation_snippet(snippet),
+            is_neutral_availability_snippet(snippet),
+            is_educational_or_article_snippet(snippet),
+        )
+    )

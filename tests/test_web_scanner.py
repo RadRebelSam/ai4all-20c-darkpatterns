@@ -4,8 +4,15 @@ from src.data import load_primary_binary_dataset
 from src.filters import (
     contains_pressure_language,
     infer_dark_pattern_type,
+    is_benign_context_snippet,
+    is_benign_feature_comparison_snippet,
+    is_course_metadata_snippet,
+    is_educational_or_article_snippet,
     is_low_context_product_snippet,
     is_low_context_web_snippet,
+    is_neutral_availability_snippet,
+    is_order_confirmation_snippet,
+    is_review_or_purchase_metadata_snippet,
     is_simple_price_or_discount_snippet,
 )
 from src.modeling import make_pipeline
@@ -114,6 +121,121 @@ def test_low_context_web_filter_suppresses_weak_page_fragments():
 
     assert not is_low_context_web_snippet(
         "Only 2 left in stock. Buy now before the deal ends."
+    )
+
+
+def test_pressure_language_guard_covers_common_urgency_and_scarcity_variants():
+    protected_phrases = [
+        "Today only: save 20 percent",
+        "Offer ends in 10 minutes",
+        "Order within 2 hours",
+        "Few remaining",
+        "Last one available",
+        "Don't miss out",
+    ]
+
+    assert all(contains_pressure_language(text) for text in protected_phrases)
+
+
+def test_benign_feature_comparison_filter_keeps_real_pressure():
+    assert is_benign_feature_comparison_snippet(
+        "Competitors have a limited library and limited storage."
+    )
+    assert is_benign_feature_comparison_snippet(
+        "Average creation time: minutes, not days."
+    )
+    assert is_benign_feature_comparison_snippet("Takes too much time!")
+
+    assert not is_benign_feature_comparison_snippet(
+        "Limited time offer ends tonight."
+    )
+    assert not is_benign_feature_comparison_snippet(
+        "Limited storage plan available today only."
+    )
+
+
+def test_review_metadata_filter_keeps_social_proof():
+    assert is_review_or_purchase_metadata_snippet(
+        "Purchased in the United States on January 5, 2026."
+    )
+    assert is_review_or_purchase_metadata_snippet(
+        "Reviewed in Canada on 01/05/2026."
+    )
+    assert is_review_or_purchase_metadata_snippet("Verified purchase")
+
+    assert not is_review_or_purchase_metadata_snippet(
+        "20 people purchased this item today."
+    )
+    assert not is_review_or_purchase_metadata_snippet(
+        "Someone just bought this item."
+    )
+
+
+def test_course_metadata_filter_keeps_limited_time_course_offer():
+    assert is_course_metadata_snippet(
+        "Includes 12 hours of on-demand video and a certificate of completion."
+    )
+    assert is_course_metadata_snippet(
+        "Full lifetime access with 8 downloadable resources."
+    )
+
+    assert not is_course_metadata_snippet(
+        "Full lifetime access, but this limited time offer ends tonight."
+    )
+
+
+def test_order_confirmation_filter_keeps_checkout_countdown():
+    assert is_order_confirmation_snippet("Order confirmed.")
+    assert is_order_confirmation_snippet("Thank you for your purchase.")
+    assert is_order_confirmation_snippet("We've received your payment.")
+
+    assert not is_order_confirmation_snippet(
+        "Your cart is reserved for 10 minutes."
+    )
+    assert not is_order_confirmation_snippet(
+        "Order confirmed. Claim your bonus today only."
+    )
+
+
+def test_neutral_availability_filter_keeps_real_scarcity():
+    assert is_neutral_availability_snippet("In stock and ready to ship.")
+    assert is_neutral_availability_snippet("Out of stock. Check back later.")
+    assert is_neutral_availability_snippet("Available in two sizes and five colors.")
+    assert is_neutral_availability_snippet("Available for pickup.")
+
+    assert not is_neutral_availability_snippet("In stock, only 2 left.")
+    assert not is_neutral_availability_snippet("Available today only.")
+
+
+def test_educational_filter_requires_reporting_context():
+    assert is_educational_or_article_snippet(
+        "This article explains how limited-time offers pressure shoppers."
+    )
+    assert is_educational_or_article_snippet(
+        "They display limited time offers with countdown timers."
+    )
+    assert is_educational_or_article_snippet(
+        "A dark pattern called scarcity tells users that only two items remain."
+    )
+
+    assert not is_educational_or_article_snippet(
+        "Limited time offer. Only two items remain."
+    )
+
+
+def test_extended_benign_context_filter_combines_all_new_rules():
+    benign_examples = [
+        "Limited library and limited storage.",
+        "Purchased in the United States on January 5, 2026.",
+        "Includes 12 hours of on-demand video.",
+        "Your payment is confirmed.",
+        "Available for delivery.",
+        "This guide describes urgency and countdown pressure.",
+    ]
+
+    assert all(is_benign_context_snippet(text) for text in benign_examples)
+    assert not is_benign_context_snippet(
+        "Hurry! Only 2 left in stock. Offer ends tonight."
     )
 
 

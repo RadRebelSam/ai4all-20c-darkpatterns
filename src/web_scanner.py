@@ -18,6 +18,7 @@ from sklearn.pipeline import Pipeline
 
 from src.filters import (
     contains_pressure_language,
+    is_benign_context_snippet,
     is_low_context_product_snippet,
     is_low_context_web_snippet,
     is_simple_price_or_discount_snippet,
@@ -155,6 +156,7 @@ def score_snippets(
     suppress_simple_discounts: bool = True,
     suppress_product_titles: bool = True,
     suppress_context_light: bool = True,
+    suppress_benign_context: bool = True,
 ) -> list[SnippetPrediction]:
     """Run the trained model over snippets and sort likely dark patterns first."""
     results = []
@@ -178,6 +180,12 @@ def score_snippets(
             suppress_product_titles
             and prediction.label == 1
             and is_low_context_product_snippet(snippet)
+        ):
+            continue
+        if (
+            suppress_benign_context
+            and prediction.label == 1
+            and is_benign_context_snippet(snippet)
         ):
             continue
         if (

@@ -218,26 +218,53 @@ python scripts/scan_page.py https://example.com
 
 The scanner opens the page, waits briefly for dynamic content or popups, extracts visible body text, splits it into short snippets, and runs the trained text model over each snippet. This is a demo-friendly webpage scanner, not full visual UI understanding.
 
-By default, the Streamlit app and Playwright scanner also apply two lightweight demo safeguards:
+By default, the Streamlit app and Playwright scanner apply lightweight demo safeguards:
 
 - They suppress simple price/discount snippets such as `sale price $10.00` or `Previous price: $99.00 47% off` unless the snippet includes pressure language like `hurry`, `limited time`, `ends soon`, or `only 2 left`.
 - They suppress catalog-style product title/spec snippets such as model numbers, storage sizes, camera/lens specs, and labels like `US Stock` unless the snippet includes pressure language.
 - They suppress low-context webpage fragments such as `Thanks Charan!`, `Why I bought this!`, `Deals bought: 284`, or short course/module titles unless the snippet includes pressure language.
+- They suppress benign comparison copy, review metadata, course metadata, completed order messages, ordinary availability labels, and educational descriptions that can contain words the model associates with dark patterns.
 
 These post-processing filters reduce obvious false positives in the live demo. A longer-term model improvement would be to add more normal sale/discount and product-catalog examples labeled as `Not Dark Pattern` and retrain.
 
 ## Demo Filters
 
-All rule-based demo filters live in [`src/filters.py`](src/filters.py). The webpage scanner applies them in [`src/web_scanner.py`](src/web_scanner.py), and the terminal interface exposes filter switches in [`scripts/scan_page.py`](scripts/scan_page.py).
+All rule-based demo filters live in [`src/filters.py`](src/filters.py). The webpage scanner applies them in [`src/web_scanner.py`](src/web_scanner.py), the single-text demo applies them in [`src/predict.py`](src/predict.py), and the terminal interface exposes filter switches in [`scripts/scan_page.py`](scripts/scan_page.py).
 
 These filters do not retrain or change the machine learning model. They are post-processing safeguards that hide common false positives after the model predicts a snippet as suspicious.
 
-| Filter | Function | Suppresses | Keeps |
-| --- | --- | --- | --- |
-| Pressure-language detector | `contains_pressure_language` | Nothing by itself; this is used by the other filters. | Words and phrases such as `hurry`, `last chance`, `limited time`, `ends soon`, `only 2 left`, `low stock`, and `act now`. |
-| Simple price/discount filter | `is_simple_price_or_discount_snippet` | Plain sale or price labels such as `sale price $10.00`, `Previous price: $99.00 47% off`, `was $50`, or `now $25`. | Discount text that also includes pressure language, such as `Hurry, 47% off ends soon`. |
-| Product title/spec filter | `is_low_context_product_snippet` | Catalog metadata such as model numbers, storage sizes, camera/lens specs, `US Stock`, `open box`, `near mint`, or `refurbished` when there is no pressure language. | Product snippets that include urgency or scarcity, such as `Only 2 left in stock for this tablet`. |
-| Low-context webpage fragment filter | `is_low_context_web_snippet` | Snippets too thin to judge alone, such as `Thanks Charan!`, `Why I bought this!`, `Deals bought: 284`, short testimonials, bare counters, or short course/module titles. | Any of those snippets if they also include real pressure language like `only 2 left`, `deal ends`, or `act now`. |
+### How the safeguards work
+
+The filters run only after the binary model predicts `Dark Pattern`. Most filters first call `contains_pressure_language`. If the text contains a recognized urgency or scarcity phrase, the filter keeps the result for human review instead of hiding it.
+
+The pressure-language guard recognizes phrases including:
+
+- Urgency: `hurry`, `last chance`, `limited time`, `offer ends`, `today only`, `order within`, `don't miss out`, and `act now`.
+- Scarcity: `only 2 left`, `few remaining`, `last one available`, `stock running low`, `low stock`, and `while supplies last`.
+
+For example, `Limited storage is available` can be suppressed as ordinary feature information, while `Limited storage plan available today only` is kept because `today only` adds real pressure.
+
+### Filter reference
+
+| Filter | Function | What it filters out | Example filtered out | Example deliberately kept |
+| --- | --- | --- | --- | --- |
+| Pressure-language guard | `contains_pressure_language` | Nothing by itself. It protects likely urgency and scarcity from the suppressing filters below. | Not applicable. | `Offer ends in 10 minutes`, `Few remaining`, `Don't miss out`. |
+| Simple price/discount filter | `is_simple_price_or_discount_snippet` | Plain prices and discounts without pressure. | `Previous price: $99.00 47% off`. | `Hurry, 47% off ends soon`. |
+| Product title/spec filter | `is_low_context_product_snippet` | Catalog titles containing model numbers, dimensions, storage sizes, camera specs, stock-origin labels, or condition labels. | `2025 Tablet 10 inch Android 14 8+64GB 1280x800`. | `Only 2 left in stock for this tablet`. |
+| Low-context fragment filter | `is_low_context_web_snippet` | Very short fragments, bare counters, weak testimonial fragments, short lesson/module titles, and sentences where `left` is ordinary past tense. | `Thanks Charan!`, `Deals bought: 284`, or `No water in the morning when we left`. | `Only 2 left in stock. Buy now before the deal ends`. |
+| Benign feature-comparison filter | `is_benign_feature_comparison_snippet` | Feature limitations and comparison-table pain points that use model-sensitive words such as `limited`, `time`, or `cost`. | `Limited library`, `Time consuming`, or `Average creation time: minutes, not days`. | `Limited time offer ends tonight`. |
+| Review/purchase metadata filter | `is_review_or_purchase_metadata_snippet` | Review-platform metadata describing where and when a reviewer bought or reviewed an item. | `Purchased in the United States on January 5, 2026` or `Verified purchase`. | `20 people purchased this item today`. |
+| Course metadata filter | `is_course_metadata_snippet` | Ordinary descriptions of course length, access, certificates, exercises, tests, and resources. | `Includes 12 hours of on-demand video and a certificate of completion`. | `Full lifetime access, but this limited time offer ends tonight`. |
+| Order-confirmation filter | `is_order_confirmation_snippet` | Completed order, payment, or purchase confirmations without a timer or threat. | `Order confirmed` or `We've received your payment`. | `Your cart is reserved for 10 minutes`. |
+| Neutral-availability filter | `is_neutral_availability_snippet` | Ordinary inventory, variant, pickup, delivery, download, and shipping-status text. | `Available in two sizes`, `Out of stock`, or `Ready to ship`. | `In stock, only 2 left` or `Available today only`. |
+| Educational/article filter | `is_educational_or_article_snippet` | Reporting or teaching text that discusses dark patterns instead of directing pressure at the shopper. It requires both reporting context and a dark-pattern or pressure cue. | `This article explains how limited-time offers pressure shoppers`. | `Limited time offer. Only two items remain`. |
+| Combined benign-context helper | `is_benign_context_snippet` | Applies the six extended context filters above through one shared check used by both demos. | Any snippet matched by a feature-comparison, metadata, confirmation, availability, or educational filter. | Any snippet that matches none of those narrow rules. |
+
+### Where the filters are applied
+
+- `Analyze text`: `Apply demo filters` controls the price, product, and six extended context filters.
+- `Scan webpage`: `Apply demo filters` controls all filters. `Hide vague short snippets` separately controls the low-context fragment filter.
+- Terminal scanner: `--no-price-filter`, `--no-product-filter`, and `--no-context-filter` expose the raw output for comparison. The context switch disables the six extended context filters plus the low-context fragment filter.
 
 In Streamlit, the `Scan webpage` tab has a `Hide vague short snippets` checkbox. That controls the low-context webpage fragment filter.
 
@@ -263,6 +290,8 @@ The model performs strongly on the curated held-out test set, but live webpage s
 
 The current demo handles those cases with post-processing filters, but the better long-term solution is better validation data. A stronger next evaluation would keep the original held-out test set for model comparison, then add a separate external validation set from live websites that were not part of the Kaggle datasets. That external set should report precision, recall, F1, false positives, and false negatives by website type and dark-pattern category.
 
+The educational/article filter is especially context-sensitive. It reduces false alarms when an article quotes an example such as `limited-time offer`, but a text-only rule can still misunderstand borderline sentences. For that reason, all filtered output should remain reproducible by turning the demo filters off.
+
 ## Responsible AI
 
 This model should be used as a review aid rather than a final judgment. Dark patterns can depend on full page layout, timing, checkout flow, and visual design; this version only analyzes text. A false positive from this model could expose a legitimate business to unwarranted scrutiny; a false negative could leave a consumer unprotected. Model predictions should be one input into a larger review process, not a standalone verdict.
@@ -272,8 +301,8 @@ Key limitations:
 - Some categories have very few examples after deduplication, especially `Sneaking` with 22 examples and `Obstruction` with 55, so likely-type predictions for rare categories are more likely to be misclassified
 - Text-only features cannot capture visual manipulation, flow-based dark patterns, or context-dependent intent
 - The Playwright scanner can often capture popup text when it appears in the DOM, but it may miss cross-origin iframes, image/canvas text, closed shadow DOM content, or websites that block automation
-- The Streamlit/scanner price-discount filter is a rule-based demo safeguard, not a substitute for better labeled training data
-- The product-title/spec filter is also a rule-based demo safeguard; it can reduce catalog false positives but should not be treated as proof that a page has no dark patterns
+- All demo filters are rule-based safeguards, not substitutes for better labeled training data
+- Context filters can reduce common false positives but can also hide borderline text, especially educational descriptions; raw model output should remain available for review
 - Sentiment alone cannot determine whether a design is deceptive; the model would need surrounding UI context and human review for borderline cases
 - Screenshot + OCR could recover image-based text, but OCR can misread stylized fonts, low-contrast text, animations, and responsive layouts
 - Color and layout analysis would require computer-vision or DOM/CSS features, not just TF-IDF text features
@@ -345,6 +374,9 @@ These steps should resolve the permission error when installing dependencies on 
 Data sources: Krish Uppal dark-patterns dataset, Adarsh M09 dark-pattern dataset, Devitachi dark-pattern dataset, Mohit Sharma dark-patterns on e-commerce platforms dataset, and Akash Nath deceptive-patterns classification data from Kaggle.
 
 ## Deliverables
+
+### Streamlit App
+https://ai4all-20c-darkpatterns.streamlit.app/
 
 ### Student Norms & Conflict Resolution Agreement
 https://docs.google.com/document/d/1xZe-Gzp7QJp7ArmpTayKea5mC11Ep3e2UeTyxgF7_Ao/edit?usp=sharing
