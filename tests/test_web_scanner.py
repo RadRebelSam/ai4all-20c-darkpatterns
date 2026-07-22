@@ -242,7 +242,7 @@ def test_extended_benign_context_filter_combines_all_new_rules():
 def test_infer_dark_pattern_type_from_text_cues():
     assert infer_dark_pattern_type("Hurry, sale ends tonight") == "Urgency"
     assert infer_dark_pattern_type("Only 2 left in stock") == "Scarcity"
-    assert infer_dark_pattern_type("1,243 people are looking at this item") == "Social proof"
+    assert infer_dark_pattern_type("1,243 people are looking at this item") == "Social Proof"
     assert (
         infer_dark_pattern_type("Only 2 left. Sale ends tonight")
         == "Urgency + Scarcity"
@@ -250,3 +250,19 @@ def test_infer_dark_pattern_type_from_text_cues():
     assert infer_dark_pattern_type("This cotton pillowcase is machine washable") == (
         "Unclear from text alone"
     )
+
+def test_infer_dark_pattern_type_covers_remaining_categories():
+    assert infer_dark_pattern_type(
+        "Contact customer service to cancel your subscription"
+    ) == "Obstruction"
+    assert infer_dark_pattern_type(
+        "This item was automatically added to your cart"
+    ) == "Sneaking"
+    assert infer_dark_pattern_type(
+        "You must create an account to continue"
+    ) == "Forced Action"
+    assert infer_dark_pattern_type(
+        "I prefer to pay full price"
+    ) == "Misdirection"
+
+    
