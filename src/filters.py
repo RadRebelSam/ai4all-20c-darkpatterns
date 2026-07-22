@@ -41,6 +41,32 @@ CONFIRMSHAMING_RE = re.compile(
     r"(no thanks|i don't want|i do not want|not interested).*(save|deal|offer|discount|money)",
     re.IGNORECASE,
 )
+MISDIRECTION_RE = re.compile(
+    r"(no,?\s+i\s+(don't|do not)\s+want|"
+    r"skip\s+(this\s+)?(deal|offer|discount)|"
+    r"i\s+prefer\s+to\s+pay\s+full\s+price)",
+    re.IGNORECASE,
+)
+OBSTRUCTION_RE = re.compile(
+    r"(call\s+to\s+cancel|"
+    r"contact\s+customer\s+service\s+to\s+(cancel|unsubscribe)|"
+    r"cannot\s+be\s+cancelled\s+online|"
+    r"multiple\s+steps\s+to\s+(cancel|unsubscribe|delete))",
+    re.IGNORECASE,
+)
+SNEAKING_RE = re.compile(
+    r"(automatically\s+(added|renews|enrolled)|"
+    r"pre-?selected|"
+    r"opt-?out\s+by\s+default|"
+    r"processing\s+fee\s+added\s+at\s+checkout)",
+    re.IGNORECASE,
+)
+FORCED_ACTION_RE = re.compile(
+    r"(must\s+(create|sign up for)\s+an?\s+account|"
+    r"required\s+to\s+(share|allow)|"
+    r"you\s+must\s+agree\s+to\s+continue)",
+    re.IGNORECASE,
+)
 PRODUCT_TITLE_NOISE_RE = re.compile(
     r"("
     r"\b(us|usa|uk|eu)\s+stock\b|"
@@ -171,15 +197,24 @@ def infer_dark_pattern_type(snippet: str) -> str:
     This is a rule-based explanation helper, not a trained multi-class model.
     It should be shown as "possible type" rather than a definitive category.
     """
+    
     matches = []
     if URGENCY_RE.search(snippet):
         matches.append("Urgency")
     if SCARCITY_RE.search(snippet):
         matches.append("Scarcity")
     if SOCIAL_PROOF_RE.search(snippet):
-        matches.append("Social proof")
+        matches.append("Social Proof")
     if CONFIRMSHAMING_RE.search(snippet):
         matches.append("Confirmshaming")
+    if MISDIRECTION_RE.search(snippet):
+        matches.append("Misdirection")
+    if OBSTRUCTION_RE.search(snippet):
+        matches.append("Obstruction")
+    if SNEAKING_RE.search(snippet):
+        matches.append("Sneaking")
+    if FORCED_ACTION_RE.search(snippet):
+        matches.append("Forced Action")
 
     if not matches:
         return "Unclear from text alone"
