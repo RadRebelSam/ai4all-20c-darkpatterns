@@ -18,6 +18,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.pipeline import Pipeline
 from sklearn.svm import LinearSVC
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.calibration import CalibratedClassifierCV
 
 from src.data import LABEL_COLUMN, TEXT_COLUMN
 
@@ -73,7 +74,8 @@ def make_classifier(model_name: str) -> BaseEstimator:
     if model_name == "Naive Bayes":
         return MultinomialNB()
     if model_name == "Linear SVM":
-        return LinearSVC(random_state=RANDOM_STATE)
+        base = LinearSVC(random_state=RANDOM_STATE)
+        return CalibratedClassifierCV(base, cv=5)
     if model_name == "Decision Tree":
         return DecisionTreeClassifier(max_depth=25, random_state=RANDOM_STATE)
     if model_name == "Random Forest":
