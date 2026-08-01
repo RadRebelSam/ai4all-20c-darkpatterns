@@ -3,7 +3,9 @@
 # Ensure project root is on sys.path so `from src import ...` works when
 # Streamlit launches the app from a different working directory.
 import html
+import inspect
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -398,6 +400,42 @@ def possible_type_for_text(text: str) -> str:
     return f"{category} ({confidence:.1%})"
 
 
+def predict_text_for_app(
+    text: str,
+    model,
+    *,
+    hide_context_light: bool = True,
+):
+    """Run text filters while tolerating a stale Streamlit module cache."""
+    supports_context_filter = "suppress_context_light" in inspect.signature(
+        predict_text_for_demo
+    ).parameters
+    if supports_context_filter:
+        return predict_text_for_demo(
+            text,
+            model,
+            suppress_context_light=hide_context_light,
+        )
+
+    prediction = predict_text_for_demo(text, model)
+    if (
+        hide_context_light
+        and prediction.label == 1
+        and demo_filters.is_low_context_web_snippet(prediction.text)
+    ):
+        return replace(
+            prediction,
+            label=0,
+            label_name="Not Dark Pattern",
+            suppressed_by_filter=True,
+            filter_reason=(
+                "A vague or very short webpage fragment was suppressed because it did not "
+                "provide enough context to judge as a dark pattern."
+            ),
+        )
+    return prediction
+
+
 def model_result_rows(
     text: str,
     *,
@@ -408,10 +446,10 @@ def model_result_rows(
     rows = []
     for name, pipeline in get_comparison_models().items():
         if apply_filters:
-            prediction = predict_text_for_demo(
+            prediction = predict_text_for_app(
                 text,
                 pipeline,
-                suppress_context_light=hide_context_light,
+                hide_context_light=hide_context_light,
             )
             filter_note = (
                 "Adjusted by a demo false-positive filter"
@@ -715,10 +753,10 @@ with text_tab:
             model = get_or_train_model()
             st.session_state["last_text"] = text
             st.session_state["last_prediction"] = (
-                predict_text_for_demo(
+                predict_text_for_app(
                     text,
                     model,
-                    suppress_context_light=hide_text_context_light,
+                    hide_context_light=hide_text_context_light,
                 )
                 if apply_text_filters
                 else predict_text(text, model)
