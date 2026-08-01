@@ -92,6 +92,25 @@ def test_predict_text_for_demo_keeps_real_pressure_with_benign_words(small_pipel
     assert not demo.suppressed_by_filter
 
 
+def test_predict_text_for_demo_can_toggle_vague_short_snippet_filter(small_pipeline):
+    text = "Why I bought this!"
+    raw = predict_text(text, small_pipeline)
+    filtered = predict_text_for_demo(text, small_pipeline)
+    unfiltered = predict_text_for_demo(
+        text,
+        small_pipeline,
+        suppress_context_light=False,
+    )
+
+    assert raw.label in {0, 1}
+    if raw.label == 1:
+        assert filtered.label == 0
+        assert filtered.suppressed_by_filter
+        assert "vague" in filtered.filter_reason.lower()
+        assert unfiltered.label == 1
+        assert not unfiltered.suppressed_by_filter
+
+
 def test_predict_dark_pattern_category_returns_category():
     df = load_primary_binary_dataset()
     dark = df[df["label"] == 1]

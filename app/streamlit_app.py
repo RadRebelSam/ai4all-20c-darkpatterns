@@ -398,12 +398,21 @@ def possible_type_for_text(text: str) -> str:
     return f"{category} ({confidence:.1%})"
 
 
-def model_result_rows(text: str, *, apply_filters: bool) -> list[dict[str, object]]:
+def model_result_rows(
+    text: str,
+    *,
+    apply_filters: bool,
+    hide_context_light: bool = True,
+) -> list[dict[str, object]]:
     """Run the entered text through every configured model."""
     rows = []
     for name, pipeline in get_comparison_models().items():
         if apply_filters:
-            prediction = predict_text_for_demo(text, pipeline)
+            prediction = predict_text_for_demo(
+                text,
+                pipeline,
+                suppress_context_light=hide_context_light,
+            )
             filter_note = (
                 "Adjusted by a demo false-positive filter"
                 if prediction.suppressed_by_filter
@@ -639,9 +648,6 @@ webpage_examples = [
     "https://www.ulta.com/promotion/sale",
     "https://toonbee.ai/",
     "https://www.cnn.com/",
-    "https://www.udemy.com/course/c-in-1-hour/",
-    "https://www.booking.com/reviews/mx/hotel/amp-hostal-nojoch-che-coba.en-gb.html",
-    "https://usercentrics.com/knowledge-hub/dark-patterns-and-how-they-affect-consent/",
 ]
 
 text_tab, scanner_tab = st.tabs(["Analyze text", "Scan webpage"])
@@ -689,6 +695,17 @@ with text_tab:
             "metadata, status messages, and educational examples. "
             "Turn off to see raw model output."
         )
+        hide_text_context_light = True
+        if apply_text_filters:
+            hide_text_context_light = st.checkbox(
+                "Hide vague short snippets",
+                value=True,
+                key="hide_text_context_light",
+            )
+            st.caption(
+                "Hides weak fragments like testimonials, bare counters, or tiny headings "
+                "unless they include real urgency or scarcity language."
+            )
         analyze = st.button("Analyze text", type="primary", use_container_width=True)
 
     if analyze:
@@ -698,13 +715,18 @@ with text_tab:
             model = get_or_train_model()
             st.session_state["last_text"] = text
             st.session_state["last_prediction"] = (
-                predict_text_for_demo(text, model)
+                predict_text_for_demo(
+                    text,
+                    model,
+                    suppress_context_light=hide_text_context_light,
+                )
                 if apply_text_filters
                 else predict_text(text, model)
             )
             st.session_state["last_rows"] = model_result_rows(
                 text,
                 apply_filters=apply_text_filters,
+                hide_context_light=hide_text_context_light,
             )
 
     if "last_prediction" in st.session_state and "last_rows" in st.session_state:
