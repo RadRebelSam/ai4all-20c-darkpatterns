@@ -680,11 +680,11 @@ examples = {
     "Urgency example": "Hurry! Sale ends in 10 minutes. Buy now before prices go up.",
     "Scarcity example": "Only 2 left in stock. Add to cart before this item sells out.",
     "Social proof example": "1,243 people are looking at this item right now.",
-    "Filter example": "Why I bought this!",
-    "Vague short snippet example": (
+    "Filter example": (
         "2025 Tablet 10 inch Android 14 Tablet 8+64GB 1280x800 IPS "
         "Touchscreen 5000mAh US"
     ),
+    "Vague short snippet example": "Why I bought this!",
     "Neutral example": "This cotton pillowcase is machine washable and available in two sizes.",
 }
 webpage_examples = [
