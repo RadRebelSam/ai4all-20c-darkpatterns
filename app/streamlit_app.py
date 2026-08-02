@@ -675,7 +675,7 @@ examples = {
     "Urgency example": "Hurry! Sale ends in 10 minutes. Buy now before prices go up.",
     "Scarcity example": "Only 2 left in stock. Add to cart before this item sells out.",
     "Social proof example": "1,243 people are looking at this item right now.",
-    "Filter example (toggle filters)": "Previous price: $99.00 47% off",
+    "Filter example": "Previous price: $99.00 47% off",
     "Vague short snippet example": "Why I bought this!",
     "Neutral example": "This cotton pillowcase is machine washable and available in two sizes.",
 }
@@ -715,7 +715,6 @@ with text_tab:
             with example_columns[index % 3]:
                 if st.button(label, use_container_width=True):
                     st.session_state["selected_example_text"] = example_text
-                    st.rerun()
 
     with option_col:
         st.subheader("Run check")
@@ -734,7 +733,7 @@ with text_tab:
         if apply_text_filters:
             hide_text_context_light = st.checkbox(
                 "Hide vague short snippets",
-                value=True,
+                value=False,
                 key="hide_text_context_light",
             )
             st.caption(
