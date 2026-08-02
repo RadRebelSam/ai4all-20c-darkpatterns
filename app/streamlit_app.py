@@ -400,6 +400,11 @@ def possible_type_for_text(text: str) -> str:
     return f"{category} ({confidence:.1%})"
 
 
+def select_text_example(example_text: str) -> None:
+    """Load an Analyze Text example before Streamlit redraws the page."""
+    st.session_state["website_text"] = example_text
+
+
 def predict_text_for_app(
     text: str,
     model,
@@ -675,11 +680,11 @@ examples = {
     "Urgency example": "Hurry! Sale ends in 10 minutes. Buy now before prices go up.",
     "Scarcity example": "Only 2 left in stock. Add to cart before this item sells out.",
     "Social proof example": "1,243 people are looking at this item right now.",
-    "Filter example": (
+    "Filter example": "Why I bought this!",
+    "Vague short snippet example": (
         "2025 Tablet 10 inch Android 14 Tablet 8+64GB 1280x800 IPS "
         "Touchscreen 5000mAh US"
     ),
-    "Vague short snippet example": "Why I bought this!",
     "Neutral example": "This cotton pillowcase is machine washable and available in two sizes.",
 }
 webpage_examples = [
@@ -697,9 +702,6 @@ with text_tab:
         if "website_text" not in st.session_state:
             st.session_state["website_text"] = ""
 
-        if "selected_example_text" in st.session_state:
-            st.session_state["website_text"] = st.session_state.pop("selected_example_text")
-
         st.write("**Text**")
         text = st.text_area(
             "Text",
@@ -716,8 +718,12 @@ with text_tab:
         example_columns = st.columns(3)
         for index, (label, example_text) in enumerate(examples.items()):
             with example_columns[index % 3]:
-                if st.button(label, use_container_width=True):
-                    st.session_state["selected_example_text"] = example_text
+                st.button(
+                    label,
+                    use_container_width=True,
+                    on_click=select_text_example,
+                    args=(example_text,),
+                )
 
     with option_col:
         st.subheader("Run check")
