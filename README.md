@@ -378,6 +378,9 @@ Data sources: Krish Uppal dark-patterns dataset, Adarsh M09 dark-pattern dataset
 ### Streamlit App
 https://ai4all-20c-darkpatterns.streamlit.app/
 
+### Streamlit App Demo
+https://www.youtube.com/watch?v=_SsahyNzagU
+
 ### Student Norms & Conflict Resolution Agreement
 https://docs.google.com/document/d/1xZe-Gzp7QJp7ArmpTayKea5mC11Ep3e2UeTyxgF7_Ao/edit?usp=sharing
 
