@@ -6,7 +6,7 @@ This project uses machine learning to detect deceptive dark-pattern language in 
 
 ## Research Question
 
-Can machine learning models detect dark-pattern language in e-commerce website text, and which categories of dark patterns are hardest to classify?
+How effectively can supervised text-classification models detect dark-pattern language in e-commerce website text - and which categories of dark patterns are hardest to classify?
 
 ## Project Evolution
 
