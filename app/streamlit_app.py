@@ -17,7 +17,7 @@ import streamlit as st
 
 from src.data import load_primary_binary_dataset
 from src import filters as demo_filters
-from src.jev import predict_text_with_jev
+from src.jev import JevPrediction, predict_text_with_jev
 from src.modeling import make_pipeline, model_names
 from src.predict import (
     get_or_train_category_model,
@@ -649,7 +649,12 @@ def scan_url_with_progress(
     return snippets, results[:limit]
 
 
-def render_scan_results(url: str, snippets: list[str], results: list) -> None:
+def render_scan_results(
+    url: str,
+    snippets: list[str],
+    results: list,
+    jev_results: dict[str, JevPrediction] | None = None,
+) -> None:
     """Render webpage scan results in the app."""
     safe_url = html.escape(url)
     st.markdown(
@@ -688,6 +693,29 @@ def render_scan_results(url: str, snippets: list[str], results: list) -> None:
         pattern_type = html.escape(possible_type_for_text(result.snippet))
         width = 8 if confidence is None else max(4, round(float(confidence) * 100))
         safe_snippet = html.escape(result.snippet)
+        jev_html = ""
+        if jev_results and result.snippet in jev_results:
+            jev_prediction = jev_results[result.snippet]
+            jev_width = max(4, round(jev_prediction.confidence * 100))
+            jev_bar_class = (
+                "suspicious"
+                if jev_prediction.label_name == "Dark Pattern"
+                else "okay"
+            )
+            jev_type = html.escape(jev_prediction.category or "Not flagged")
+            jev_html = f"""
+                <div class="model-row">
+                    <div class="model-row-label">
+                        <span>Jev second check</span>
+                        <span class="model-result">{friendly_prediction(jev_prediction.label_name)}</span>
+                    </div>
+                    <div class="model-bar-track">
+                        <div class="model-bar-fill {jev_bar_class}" style="width: {jev_width}%"></div>
+                    </div>
+                    <div class="small-note">{jev_prediction.confidence:.1%} confidence in Jev's answer</div>
+                    <div class="small-note">Jev possible type: {jev_type}</div>
+                </div>
+            """
         st.markdown(
             f"""
             <section class="scan-flag">
@@ -700,6 +728,7 @@ def render_scan_results(url: str, snippets: list[str], results: list) -> None:
                 </div>
                 <div class="small-note">{confidence_label} - {confidence_detail_text}</div>
                 <div class="small-note">Possible type: {pattern_type}</div>
+                {jev_html}
                 <p class="scan-snippet">{safe_snippet}</p>
             </section>
             """,
@@ -900,6 +929,18 @@ with scanner_tab:
                 "Hides weak fragments like testimonials, bare counters, or tiny headings "
                 "unless they include real urgency or scarcity language."
             )
+        include_scan_jev = st.checkbox(
+            "Include Jev comparison",
+            value=False,
+            key="include_scan_jev",
+        )
+        scan_jev_api_key = get_jev_api_key() if include_scan_jev else None
+        if include_scan_jev and not scan_jev_api_key:
+            st.warning(
+                "Jev is not configured. Set `TYPESAFE_API_KEY` in the environment "
+                "or Streamlit secrets. The local scanner will still run."
+            )
+        st.caption("Jev checks only the filtered snippets shown in the results.")
         scan = st.button("Scan webpage", type="primary", use_container_width=True)
 
     if scan:
@@ -926,6 +967,26 @@ with scanner_tab:
                 st.session_state["last_scan_url"] = url.strip()
                 st.session_state["last_scan_snippets"] = snippets
                 st.session_state["last_scan_results"] = results
+                st.session_state["last_scan_jev_results"] = {}
+                st.session_state["last_scan_jev_error"] = None
+                if include_scan_jev and scan_jev_api_key and results:
+                    status.write(
+                        f"Comparing {len(results)} filtered snippets with Jev..."
+                    )
+                    try:
+                        st.session_state["last_scan_jev_results"] = {
+                            result.snippet: predict_text_with_jev(
+                                result.snippet, scan_jev_api_key
+                            )
+                            for result in results
+                        }
+                    except Exception:
+                        st.session_state["last_scan_jev_results"] = {}
+                        st.session_state["last_scan_jev_error"] = (
+                            "Jev comparison could not run. Check `TYPESAFE_API_KEY` and "
+                            "your TypeSafe access. The local scan results are shown below."
+                        )
+                    status.write("Done.")
             except RuntimeError as exc:
                 st.error(str(exc))
 
@@ -938,7 +999,10 @@ with scanner_tab:
             st.session_state["last_scan_url"],
             st.session_state["last_scan_snippets"],
             st.session_state["last_scan_results"],
+            st.session_state.get("last_scan_jev_results", {}),
         )
+        if st.session_state.get("last_scan_jev_error"):
+            st.warning(st.session_state["last_scan_jev_error"])
 
 st.divider()
 st.caption(

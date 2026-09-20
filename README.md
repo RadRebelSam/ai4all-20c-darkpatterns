@@ -222,8 +222,9 @@ For Streamlit Community Cloud, add the same value to the app secrets:
 TYPESAFE_API_KEY = "your-key"
 ```
 
-Then select **Include Jev comparison** in the **Analyze text** tab. If the key is
-missing or the Jev request fails, the local model results still run normally.
+Then select **Include Jev comparison** in either app tab. In **Scan webpage**,
+Jev checks only the filtered snippets shown in the results. If the key is missing
+or the Jev request fails, the local model results still run normally.
 
 Scan a live webpage with Playwright:
 
