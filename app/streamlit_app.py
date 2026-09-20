@@ -703,35 +703,35 @@ def render_scan_results(
                 else "okay"
             )
             jev_type = html.escape(jev_prediction.category or "Not flagged")
-            jev_html = f"""
-                <div class="model-row">
-                    <div class="model-row-label">
-                        <span>Jev second check</span>
-                        <span class="model-result">{friendly_prediction(jev_prediction.label_name)}</span>
-                    </div>
-                    <div class="model-bar-track">
-                        <div class="model-bar-fill {jev_bar_class}" style="width: {jev_width}%"></div>
-                    </div>
-                    <div class="small-note">{jev_prediction.confidence:.1%} confidence in Jev's answer</div>
-                    <div class="small-note">Jev possible type: {jev_type}</div>
-                </div>
-            """
+            jev_html = (
+                '<div class="model-row">'
+                '<div class="model-row-label">'
+                '<span>Jev second check</span>'
+                f'<span class="model-result">{friendly_prediction(jev_prediction.label_name)}</span>'
+                "</div>"
+                '<div class="model-bar-track">'
+                f'<div class="model-bar-fill {jev_bar_class}" style="width: {jev_width}%"></div>'
+                "</div>"
+                f'<div class="small-note">{jev_prediction.confidence:.1%} confidence in Jev\'s answer</div>'
+                f'<div class="small-note">Jev possible type: {jev_type}</div>'
+                "</div>"
+            )
         st.markdown(
-            f"""
-            <section class="scan-flag">
-                <div class="model-row-label">
-                    <span>Flag {index}: Looks suspicious</span>
-                    <span class="model-result">{confidence_text}</span>
-                </div>
-                <div class="model-bar-track">
-                    <div class="model-bar-fill suspicious" style="width: {width}%"></div>
-                </div>
-                <div class="small-note">{confidence_label} - {confidence_detail_text}</div>
-                <div class="small-note">Possible type: {pattern_type}</div>
-                {jev_html}
-                <p class="scan-snippet">{safe_snippet}</p>
-            </section>
-            """,
+            (
+                '<section class="scan-flag">'
+                '<div class="model-row-label">'
+                f'<span>Flag {index}: Looks suspicious</span>'
+                f'<span class="model-result">{confidence_text}</span>'
+                "</div>"
+                '<div class="model-bar-track">'
+                f'<div class="model-bar-fill suspicious" style="width: {width}%"></div>'
+                "</div>"
+                f'<div class="small-note">{confidence_label} - {confidence_detail_text}</div>'
+                f'<div class="small-note">Possible type: {pattern_type}</div>'
+                f"{jev_html}"
+                f'<p class="scan-snippet">{safe_snippet}</p>'
+                "</section>"
+            ),
             unsafe_allow_html=True,
         )
 
