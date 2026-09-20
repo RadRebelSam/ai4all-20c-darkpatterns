@@ -4,6 +4,7 @@
 # Streamlit launches the app from a different working directory.
 import html
 import inspect
+import os
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -16,6 +17,7 @@ import streamlit as st
 
 from src.data import load_primary_binary_dataset
 from src import filters as demo_filters
+from src.jev import predict_text_with_jev
 from src.modeling import make_pipeline, model_names
 from src.predict import (
     get_or_train_category_model,
@@ -482,6 +484,35 @@ def model_result_rows(
     return rows
 
 
+def get_jev_api_key() -> str | None:
+    """Read the optional TypeSafe key from the environment or Streamlit secrets."""
+    api_key = os.getenv("TYPESAFE_API_KEY", "").strip()
+    if api_key:
+        return api_key
+
+    try:
+        secret_key = str(st.secrets.get("TYPESAFE_API_KEY", "")).strip()
+    except Exception:
+        return None
+    return secret_key or None
+
+
+def jev_result_row(text: str, api_key: str) -> dict[str, object]:
+    """Convert a Jev decision into the existing comparison-row shape."""
+    prediction = predict_text_with_jev(text, api_key)
+    return {
+        "model": "Jev (zero-shot)",
+        "prediction": prediction.label_name,
+        "friendly_prediction": friendly_prediction(prediction.label_name),
+        "confidence": prediction.confidence,
+        "confidence_label": format_confidence(prediction.confidence),
+        "confidence_text": confidence_explanation(prediction.confidence),
+        "confidence_detail": confidence_detail(prediction.confidence),
+        "pattern_type": prediction.category or "Not flagged",
+        "filter": "Zero-shot API comparison; local demo filters do not apply",
+    }
+
+
 def render_main_result(prediction) -> None:
     """Render the main prediction in plain language."""
     if prediction.suppressed_by_filter:
@@ -728,6 +759,17 @@ with text_tab:
     with option_col:
         st.subheader("Run check")
         st.write("The app will show the main answer and each model's result.")
+        include_jev = st.checkbox(
+            "Include Jev comparison",
+            value=False,
+            key="include_jev",
+        )
+        jev_api_key = get_jev_api_key() if include_jev else None
+        if include_jev and not jev_api_key:
+            st.warning(
+                "Jev is not configured. Set `TYPESAFE_API_KEY` in the environment "
+                "or Streamlit secrets. The existing models will still run."
+            )
         apply_text_filters = st.checkbox(
             "Apply demo filters",
             value=True,
@@ -771,6 +813,17 @@ with text_tab:
                 apply_filters=apply_text_filters,
                 hide_context_light=hide_text_context_light,
             )
+            st.session_state["last_jev_error"] = None
+            if include_jev and jev_api_key:
+                try:
+                    st.session_state["last_rows"].append(
+                        jev_result_row(text, jev_api_key)
+                    )
+                except Exception:
+                    st.session_state["last_jev_error"] = (
+                        "Jev comparison could not run. Check `TYPESAFE_API_KEY` and "
+                        "your TypeSafe access. The existing model results are shown below."
+                    )
 
     if "last_prediction" in st.session_state and "last_rows" in st.session_state:
         prediction = st.session_state["last_prediction"]
@@ -779,6 +832,8 @@ with text_tab:
         render_main_result(prediction)
         st.subheader("Model comparison")
         render_checker_details(rows)
+        if st.session_state.get("last_jev_error"):
+            st.warning(st.session_state["last_jev_error"])
 
 with scanner_tab:
     scan_col, settings_col = st.columns([2.2, 1], gap="large")

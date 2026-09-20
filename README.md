@@ -209,6 +209,22 @@ Run the Streamlit demo:
 streamlit run app/streamlit_app.py
 ```
 
+The existing models run without an API key. To add Jev as an optional zero-shot
+comparison, set a TypeSafe key before starting Streamlit:
+
+```powershell
+$env:TYPESAFE_API_KEY="your-key"
+```
+
+For Streamlit Community Cloud, add the same value to the app secrets:
+
+```toml
+TYPESAFE_API_KEY = "your-key"
+```
+
+Then select **Include Jev comparison** in the **Analyze text** tab. If the key is
+missing or the Jev request fails, the local model results still run normally.
+
 Scan a live webpage with Playwright:
 
 ```bash
